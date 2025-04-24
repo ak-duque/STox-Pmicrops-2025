@@ -30,6 +30,8 @@ dim(plat) # 13.905 15
 
 
 
+
+
 # 2. Load Kallisto files
 
 ## File paths to access each sample's quantification data
@@ -114,16 +116,36 @@ save(abundance_tsv, file = "03-Output/01-DEG-Analysis/processed-data/abundance_t
 
 # 3. Merge Blastp(1.) + Kallisto(2.) counts
 
-counts <- abundance_tsv$counts
+## Preparing data to merge | Purpose .: Be easy to merge
 
-## Create a new data frame that contains a "GeneID" column | Purpose .: Be easy to merge
+### Kallisto data - Create a new data frame that contains a "GeneID" column 
+counts <- abundance_tsv$counts
 counts <- cbind(as.data.frame(row.names(counts)), counts)
 colnames(counts)[1]<-"GeneID"
 
 
+### Blastp data - Add "GeneID" column + clean Blastp data
+swissprot <- select_best_hits(swissprot)
+dim(swissprot) # 37.826 16
+
+zebrafish <- select_best_hits(zebrafish)
+dim(zebrafish) # 17.933 16 
+
+plat <- select_best_hits(plat)
+dim(plat) # 3.743 16
 
 
+## Merge (Blastp + kallisto counts) | [Bp]Blastp + [k]kallisto - BpK 
+swissprot <- merge(swissprot, counts, by = "GeneID")
+dim(swissprot) # 37.824 34
 
+zebrafish <- merge(zebrafish, counts, by = "GeneID")
+dim(zebrafish) # 17.932 34
 
+plat <- merge(plat, counts, by = "GeneID")
+dim(plat) # 3.743 34
 
-
+## Save files
+save_to_excel(swissprot, "03-Output/01-DEG-Analysis/processed-data/BpK-Swissprot.xlsx")
+save_to_excel(zebrafish, "03-Output/01-DEG-Analysis/processed-data/BpK-Zebrafish.xlsx")
+save_to_excel(plat, "03-Output/01-DEG-Analysis/processed-data/BpK-Plat.xlsx")
