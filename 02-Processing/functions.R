@@ -21,6 +21,7 @@
 ## ???
 library(openxlsx)
 library(dplyr)
+library(ggplot2)
 
 ## BiocManager
 library(tximport) 
@@ -84,14 +85,28 @@ load_blastp_data <- function(filename){
 #' @param blast_data Data frame with "qseqid" column
 #' @return Data frame witha new "GeneID" column
 #' 
-Add_GeneID_column <- function(blast_data){
+Add_GeneID_column <- function(blast_data) {
   
-  blast_data$GeneID <- sapply(blast_data$qseqid,
-                              function(x) strsplit(x, "i", fixed = TRUE)[[1]][1])
+  # Debugging: 
+  # Example of correct qseqid: TRINITY_DN0_c10_g1_i1
+  not_trinity <- blast_data$qseqid[!grepl("TRINITY_D", blast_data$qseqid)]
+  if (length(not_trinity) > 0) {
+    #cat("qseqid sem 'TRINITY_D':\n")
+    #print(not_trinity)
+  } else {
+    #cat("Todos os qseqid têm 'TRINITY_D'.\n")
+  }
+  
+  
+  blast_data <- blast_data[grepl("TRINITY_D", blast_data$qseqid), ] 
+ 
+  blast_data$GeneID <- sapply(
+    blast_data$qseqid,
+    function(x) strsplit(x, "i", fixed = TRUE)[[1]][1]
+  )
   
   return(blast_data)
 }
-
 
 
 
