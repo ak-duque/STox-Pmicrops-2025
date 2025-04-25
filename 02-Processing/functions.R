@@ -20,6 +20,7 @@
 
 ## ???
 library(openxlsx)
+library(dplyr)
 
 ## BiocManager
 library(tximport) 
@@ -103,16 +104,32 @@ Add_GeneID_column <- function(blast_data){
 #' @return 
 #'  
 select_best_hits <- function(blast_data){
-  
+  # version 1
   # Add GeneID column 
-  blast_data <- Add_GeneID_column(blast_data)
+  blast_data <- Add_GeneID_column(blast_data) # Vai haver GeneID repetidos!
   
-  # Order: lowest evalue, highest pident
-  blast_data <- blast_data[order(blast_data$evalue, -blast_data$pident, decreasing = TRUE),]
+  # Debugging step
+  # Example: TRINITY_DN0_c10_g1_i1
+  example <- blast_data %>% 
+    filter(GeneID == "TRINITY_DN100212_c0_g1_") %>%
+    select(c("qseqid","GeneID","evalue","pident"))
+  #View(example)
+  
+  # Order: lowest evalue and highest pident
+  blast_data <- blast_data[order(blast_data$evalue, -blast_data$pident),]
   
   # Best hits (first row)
   best_hits <- blast_data[match(unique(blast_data$GeneID), blast_data$GeneID), ]
   
+  # Debugging step
+  # Example: TRINITY_DN0_c10_g1_i1
+  example_best_hit <- best_hits %>% 
+    filter(GeneID == "TRINITY_DN100212_c0_g1_") %>%
+    select(c("qseqid","GeneID","evalue","pident"))
+  #View(example_best_hit)
+  
+  
+
   return(best_hits)
   
 }
