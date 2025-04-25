@@ -14,6 +14,9 @@
 
 
 
+# ==============================================================================
+# TASK 1 - Blablabla blablabla blabla
+# ==============================================================================
 
 
 # 1. Load Blastp files
@@ -28,6 +31,10 @@ plat <- load_blastp_data("01-Input/Blastp/ExtremeOceans_Blastp_Plat.csv")
 dim(plat) # 13.905 15
 
 
+# Check for missing values
+sum(is.na(swissprot))           # Total count of missing values
+colSums(is.na(swissprot))       # Count per column
+anyNA(swissprot)                # TRUE if any missing values exist
 
 
 
@@ -106,7 +113,6 @@ View(head(abundance_tsv$abundance)) # matrix containing TPM's
 View(head(abundance_tsv$counts)) # matrix containing read counts
 View(head(abundance_tsv$length))
 
-
 save(abundance_tsv, file = "03-Output/01-DEG-Analysis/processed-data/abundance_tsv")
 
 
@@ -125,27 +131,67 @@ colnames(counts)[1]<-"GeneID"
 
 
 ### Blastp data - Add "GeneID" column + clean Blastp data
+
 swissprot <- select_best_hits(swissprot)
-dim(swissprot) # 37.826 16
+dim(swissprot) # 37.824 16
 
 zebrafish <- select_best_hits(zebrafish)
-dim(zebrafish) # 17.933 16 
+dim(zebrafish) # 17.932 16 
 
 plat <- select_best_hits(plat)
 dim(plat) # 3.743 16
 
 
 ## Merge (Blastp + kallisto counts) | [Bp]Blastp + [k]kallisto - BpK 
-swissprot <- merge(swissprot, counts, by = "GeneID")
-dim(swissprot) # 37.824 34
+BpK_swissprot <- merge(swissprot, counts, by = "GeneID")
+dim(BpK_swissprot) # 37.824 34
 
-zebrafish <- merge(zebrafish, counts, by = "GeneID")
-dim(zebrafish) # 17.932 34
+BpK_zebrafish <- merge(zebrafish, counts, by = "GeneID")
+dim(BpK_zebrafish) # 17.932 34
 
-plat <- merge(plat, counts, by = "GeneID")
-dim(plat) # 3.743 34
+BpK_plat <- merge(plat, counts, by = "GeneID")
+dim(BpK_plat) # 3.743 34
+
+
+
 
 ## Save files
-save_to_excel(swissprot, "03-Output/01-DEG-Analysis/processed-data/BpK-Swissprot.xlsx")
-save_to_excel(zebrafish, "03-Output/01-DEG-Analysis/processed-data/BpK-Zebrafish.xlsx")
-save_to_excel(plat, "03-Output/01-DEG-Analysis/processed-data/BpK-Plat.xlsx")
+save_to_excel(BpK_swissprot, "03-Output/01-DEG-Analysis/processed-data/BpK-Swissprot.xlsx")
+save_to_excel(BpK_zebrafish, "03-Output/01-DEG-Analysis/processed-data/BpK-Zebrafish.xlsx")
+save_to_excel(BpK_plat, "03-Output/01-DEG-Analysis/processed-data/BpK-Plat.xlsx")
+
+
+
+
+# ==============================================================================
+# TASK 2 - Blablabla blablabla blabla
+# ==============================================================================
+
+# Data needed:
+BpK_swissprot <- read.xlsx("03-Output/01-DEG-Analysis/processed-data/BpK-Swissprot.xlsx")
+BpK_zebrafish <- read.xlsx("03-Output/01-DEG-Analysis/processed-data/BpK-Zebrafish.xlsx")
+BpK_plat <- read.xlsx("03-Output/01-DEG-Analysis/processed-data/BpK-Plat.xlsx")
+
+load("03-Output/01-DEG-Analysis/processed-data/abundance_tsv")
+
+
+
+# We need to see if our data is good to analyse, since we are dealing with non-model organisms
+# So, we will start by analyzing the merge results
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
