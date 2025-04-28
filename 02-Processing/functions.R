@@ -22,6 +22,7 @@
 library(openxlsx)
 library(dplyr)
 library(ggplot2)
+library(stringr)
 
 ## BiocManager
 library(tximport) 
@@ -184,6 +185,93 @@ save_to_excel <- function(data, output_file) {
   saveWorkbook(work_book, file = output_file, overwrite = TRUE)
   cat("Excel created successfully:", output_file, "\n")
 }
+
+
+
+
+
+
+
+
+#' Process Blastp and Kallisto(counts) merged result
+#' 
+#' @param BpK_data
+#' @return 
+
+
+process_BpK_data <- function(BpK_data){
+  
+  
+  # Test
+  #BpK_data <- BpK_swissprot
+  
+  BpK_data <- BpK_data %>%
+    mutate(GeneNameID = str_extract(sseqid, "(?<=\\|)[^|]+(?=_)"),
+           # sp|P79762|ZP3_CHICK -> ZP3 
+           Accession = str_extract(sacc, "(?<=\\|)[^\\|]+(?=\\|)"),
+           # sp|P79762|ZP3_CHICK -> P79762 
+           OS = str_extract(stitle, "(?<=OS=)[^ ]+ [^ ]+")
+           # sp|Q90508|VIT1_FUNHE Vitellogenin-1 OS=Fundulus heteroclitus OX=8078 GN=vtg1 PE=1 SV=2 -> Fundulus heteroclitus
+           )
+  
+  
+  
+  # Why we need to order again? 
+  # When we add "GeneNameID" we are going to found duplicated values
+  table(BpK_data$GeneNameID)
+  
+  
+  # Debugging step
+  # Example: ABCA1 (SwissProt)
+  example <- BpK_data %>% 
+    filter(GeneNameID== "ABCA1") %>%
+    select(c("GeneNameID","evalue","pident"))
+  #View(example)
+  
+  
+  
+  
+  # Order: lowest evalue and highest pident
+  BpK_data <- BpK_data[order(BpK_data$evalue, -BpK_data$pident), ]
+  
+  # Select the best hit (1st row)
+  BpK_data <- BpK_data[match(unique(BpK_data$GeneNameID), BpK_data$GeneNameID), ]
+  
+  
+  
+  
+  
+  # Let's confirm we select the right row
+  # Debugging step
+  # Example: ABCA1  (SwissProt)
+  example1 <- BpK_data %>% 
+    filter(GeneNameID== "ABCA1") %>%
+    select(c("GeneNameID","evalue","pident"))
+  #View(example1)
+  
+  
+  
+  
+  # We also need to confirm if the string extraction went well 
+  sum(is.na(BpK_data)) # 3 NA           
+  colSums(is.na(BpK_data)) # Column "OS"
+  
+  # Further investigate why it went wrong, to know if we can fix it 
+  #View(BpK_data[is.na(BpK_data$OS), ])
+  
+  # the extraction fail because stitle was incomplete (e.g., sp|Q3SYR3|ABEC2_BOVIN Probable C- )
+  
+  return(BpK_data) 
+}
+
+
+
+
+
+
+
+
+
 
 
 
