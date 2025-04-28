@@ -181,7 +181,40 @@ load("03-Output/01-DEG-Analysis/processed-data/abundance_tsv")
 
 
 
+S <- BpK_swissprot %>%
+  select(c("pident","evalue")) %>%
+  mutate(blast = "Swissprot") # create a new column named blast
+  
+Z <- BpK_zebrafish %>%
+  select(c("pident","evalue")) %>%
+  mutate(blast = "Zebrafish")
 
+P <- BpK_plat %>%
+  select(c("pident","evalue")) %>%
+  mutate(blast = "Platyhelminthes")
+
+all_blast <- bind_rows(S,Z,P)
+head(all_blast)
+View(all_blast)
+
+
+all_blast <- all_blast %>%
+  mutate(
+    category = case_when(
+      pident < 30 ~ "Bad",
+      pident >= 30 & pident <= 70 ~ "Good",
+      pident > 70 ~ "Excellent"
+    )
+  )
+
+head(all_blast)
+View(all_blast)
+
+print(table(all_blast$category))
+
+summary <- all_blast %>%
+  count(blast, category)
+print(summary)
 
 
 
