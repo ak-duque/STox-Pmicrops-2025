@@ -53,6 +53,7 @@ sample_name <- c( "F14.Sp_TR","F15.Su_TR","F16.Su_RA",
 # ==============================================================================
 
 
+
 #' Load BLASTp output data
 #' 
 #'  @param filename Path to the BLASTp CSV file.
@@ -75,6 +76,9 @@ load_blastp_data <- function(filename){
   
   return(data)
 }
+
+
+
 
 
 
@@ -112,9 +116,14 @@ Add_GeneID_column <- function(blast_data) {
 
 
 
+
+
+
+
 #' Select the best hits in Blast
 #' 
-#' Explicar o que é que acontece aqui!!!
+#' Diferentes trinityID's podem dar o mesmo GeneID. Portanto vamos ter várias
+#' entradas com o mesmo GeneID. 
 #' 
 #' @param blast_data data frame with Blastp results (must include "GeneID" column)
 #' @return 
@@ -149,6 +158,10 @@ select_best_hits <- function(blast_data){
   return(best_hits)
   
 }
+
+
+
+
 
 
 
@@ -261,6 +274,14 @@ process_BpK_data <- function(BpK_data){
   
   # the extraction fail because stitle was incomplete (e.g., sp|Q3SYR3|ABEC2_BOVIN Probable C- )
   
+  
+  
+  
+  
+  #INCOMPLETOOOOOOOOOOOOOOOOOOOOOOOOO
+  
+  
+  
   return(BpK_data) 
 }
 
@@ -270,6 +291,143 @@ process_BpK_data <- function(BpK_data){
 
 
 
+evaluate_sequence_quality <- function(value, metric) {
+  
+  # By annotation
+  if (metric == "pident") {
+    # pident -> percentage of identical positions
+    case_when(
+      value < 30 ~ "Bad",
+      value >= 30 & value <= 70 ~ "Good",
+      value > 70 ~ "Excellent"
+    )
+  } else if (metric == "evalue") {
+    # evalue -> expect value
+    # The lower the E value, the more significant the score and the alignment.
+    case_when(
+      value > 1e-10 ~ "Good",
+      value <= 1e-70 ~ "Excellent",
+      TRUE ~ "Good"
+    )
+    
+  # By expression  
+  } else if (metric == "logFC") {
+    case_when(
+      # Genes -> overexpressed (sobrexpresso) ou underexpressed (subexpresso)
+      # Proteinas -> upregulated (super-regulado) ou downregulated (sub-regulado)
+      # so (although not entirely correct):
+      # under -> Down
+      # over -> Up
+      
+      value < -1 ~ "Underexpressed",
+      value > 1 ~ "Overexpressed",
+      TRUE ~ "No Significant"
+    )
+  } else if (metric == "pvalue") {
+    case_when(
+      value < 0.01 ~ "Excellent",
+      value <= 0.05 ~ "Good",
+      TRUE ~ "Bad"
+    )
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+#' Title
+#' 
+#' @param 
+#' @return 
+#' 
+#' @example 
+#' 
+identify_putative_plat_genes <- function(reference_data, plat_data){
+  
+  
+  # Test
+  reference_data <- Data_SP
+  plat_data <- Data_P
+  
+  
+  matched_GeneNameID <- merge(reference_data, plat_data, by = "GeneNameID",
+                              suffixes = c(".Ref", ".Plat")) 
+                              # R -> reference
+                              # P -> plat
+  
+  
+  View(matched_GeneNameID)
+  
+  
+  if(nrow(matched_GeneNameID)>0){
+    
+
+    putative_plat_data <- matched_GeneNameID %>%
+      
+      mutate(
+        pident_category.Ref = evaluate_sequence_quality(pident.Ref, "pident"),
+        evalue_category.Ref = evaluate_sequence_quality(evalue.Ref, "evalue"),
+        pident_category.Plat = evaluate_sequence_quality(pident.Plat, "pident"),
+        evalue_category.Plat = evaluate_sequence_quality(evalue.Plat, "evalue")
+      ) %>%
+      
+      select(c(GeneNameID,pident.Ref,pident_category.Ref,evalue.Ref,pident_category.Ref,
+               pident.Plat,pident_category.Plat,evalue.Plat,evalue_category.Ref, 
+               OS.Ref,OS.Plat)) %>%
+      
+      
+    
+    
+    View(matched_GeneNameID)
+    
+        
+
+    summary2 <- all_blast2 %>%
+      group_by(blast, category) %>% # agrupar
+      summarise(count = n(), .groups = "drop") %>%  #.groups = "drop" serve para desagrupar
+      group_by(blast) %>%
+      mutate(percentage = count / sum(count) * 100)
+    
+    
+    
+    
+    
+    
+    
+    # Summary of the analysis:
+    # add to the summary the number os genNameID in reference_data, and plat_data
+    # add the number and percentage of GeneNameID in common
+    # dos quais
+    # o número de GeneNameID em que o organismo é igual entre as duas data
+    summary <- paste(
+      "--- summary ---",
+      paste("There are", nrow(matched_GeneNameID), "GeneNameID in common"),
+      "of which : ",
+      
+      "---------------",
+      sep = "\n"
+      )
+    
+    cat(summary, "\n")
+    
+    
+  } else {
+    cat("Coun't identify putative platyhelminthes genes")
+  }
+  
+  
+  
+  #INCOMPLETOOOOOOOOOOOOOOOOOOOOOOOOO 
+  
+  
+}
 
 
 
