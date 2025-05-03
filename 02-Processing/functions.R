@@ -210,13 +210,12 @@ save_to_excel <- function(data, output_file) {
 #' 
 #' @param BpK_data
 #' @return 
-
-
 process_BpK_data <- function(BpK_data){
   
   
   # Test
   #BpK_data <- BpK_swissprot
+  #dim(BpK_data)
   
   BpK_data <- BpK_data %>%
     mutate(GeneNameID = str_extract(sseqid, "(?<=\\|)[^|]+(?=_)"),
@@ -231,7 +230,7 @@ process_BpK_data <- function(BpK_data){
   
   # Why we need to order again? 
   # When we add "GeneNameID" we are going to found duplicated values
-  table(BpK_data$GeneNameID)
+  #table(BpK_data$GeneNameID)
   
   
   # Debugging step
@@ -249,7 +248,7 @@ process_BpK_data <- function(BpK_data){
   
   # Select the best hit (1st row)
   BpK_data <- BpK_data[match(unique(BpK_data$GeneNameID), BpK_data$GeneNameID), ]
-  
+  #dim(BpK_data)
   
   
   
@@ -266,22 +265,49 @@ process_BpK_data <- function(BpK_data){
   
   
   # We also need to confirm if the string extraction went well 
-  sum(is.na(BpK_data)) # 3 NA           
-  colSums(is.na(BpK_data)) # Column "OS"
+  #sum(is.na(BpK_data)) # 3 NA           
+  #colSums(is.na(BpK_data)) # Column "OS"
   
   # Further investigate why it went wrong, to know if we can fix it 
   #View(BpK_data[is.na(BpK_data$OS), ])
   
   # the extraction fail because stitle was incomplete (e.g., sp|Q3SYR3|ABEC2_BOVIN Probable C- )
+  # how to fix? (solution specific to my data results/problems) 
+  
+  # BpK_swissprot -> missing: HUMAN (Homo sapiens) | BOVIN (Bos taurus)  | MOUSE (Mus musculus)
+  # BpK_zebrafish -> missing: DANRE (Danio rerio) 
+  # BpK_plat -> all ok!
   
   
+  if (anyNA(BpK_data)) {
+ 
+    BpK_data <- BpK_data %>%
+      # ifelse(test, yes, no)
+
+      # test
+      mutate(OS = ifelse(is.na(OS),
+                         
+                         # yes -> Se OS for NA - executa case_when()
+                         case_when(
+                           grepl("HUMAN", sseqid) ~ "Homo sapiens",
+                           grepl("BOVIN", sseqid) ~ "Bos taurus",
+                           grepl("MOUSE", sseqid) ~ "Mus musculus",
+                           grepl("DANRE", sseqid) ~ "Danio rerio"),
+                         
+                         # no -> Senão mantém o valor original de OS
+                         OS))
+  }
   
   
+  #sum(is.na(BpK_data))
+  #head(BpK_data$OS, 20)
+  # confirm if it is well done:
+  example3 <- BpK_data %>% 
+    filter(Accession %in% c("Q99J72","P14060", "Q3SYR3")) %>%
+    select(OS, stitle)
+  #View(example3)
   
-  #INCOMPLETOOOOOOOOOOOOOOOOOOOOOOOOO
-  
-  
-  
+
   return(BpK_data) 
 }
 
@@ -291,6 +317,13 @@ process_BpK_data <- function(BpK_data){
 
 
 
+#' Title
+#' 
+#' @param value
+#' @param metric
+#' @return
+#' 
+#' @example  
 evaluate_sequence_quality <- function(value, metric) {
   
   # By annotation
@@ -335,8 +368,14 @@ evaluate_sequence_quality <- function(value, metric) {
 
 
 
-
-
+#' Title
+#' 
+#' @param reference_data
+#' @return 
+#' 
+format_table <- function(table) {
+  paste(names(table), table, sep=": ", collapse=" | ")
+}
 
 
 
@@ -344,7 +383,8 @@ evaluate_sequence_quality <- function(value, metric) {
 
 #' Title
 #' 
-#' @param 
+#' @param reference_data
+#' @param plat_data
 #' @return 
 #' 
 #' @example 
@@ -353,8 +393,8 @@ identify_putative_plat_genes <- function(reference_data, plat_data){
   
   
   # Test
-  reference_data <- Data_SP
-  plat_data <- Data_P
+  #reference_data <- Data_SP
+  #plat_data <- Data_P
   
   
   matched_GeneNameID <- merge(reference_data, plat_data, by = "GeneNameID",
@@ -362,75 +402,108 @@ identify_putative_plat_genes <- function(reference_data, plat_data){
                               # R -> reference
                               # P -> plat
   
+  #View(matched_GeneNameID)
   
-  View(matched_GeneNameID)
   
   
   if(nrow(matched_GeneNameID)>0){
-    
 
-    putative_plat_data <- matched_GeneNameID %>%
-      
+    matched_GeneNameID_processed <- matched_GeneNameID %>%
       mutate(
         pident_category.Ref = evaluate_sequence_quality(pident.Ref, "pident"),
         evalue_category.Ref = evaluate_sequence_quality(evalue.Ref, "evalue"),
         pident_category.Plat = evaluate_sequence_quality(pident.Plat, "pident"),
         evalue_category.Plat = evaluate_sequence_quality(evalue.Plat, "evalue")
       ) %>%
-      
-      select(c(GeneNameID,pident.Ref,pident_category.Ref,evalue.Ref,pident_category.Ref,
-               pident.Plat,pident_category.Plat,evalue.Plat,evalue_category.Ref, 
-               OS.Ref,OS.Plat)) %>%
-      
-      
+      select(c(GeneNameID,
+               pident.Ref,
+               pident_category.Ref,
+               evalue.Ref,
+               evalue_category.Ref,
+               pident.Plat,
+               pident_category.Plat,
+               evalue.Plat,
+               evalue_category.Plat, 
+               OS.Ref,OS.Plat,
+               GeneID.Ref, GeneID.Plat))
+   
     
-    
-    View(matched_GeneNameID)
-    
-        
+    #View(matched_GeneNameID_processed)
+     
 
-    summary2 <- all_blast2 %>%
-      group_by(blast, category) %>% # agrupar
-      summarise(count = n(), .groups = "drop") %>%  #.groups = "drop" serve para desagrupar
-      group_by(blast) %>%
-      mutate(percentage = count / sum(count) * 100)
+    
+    putative_plat_data <- matched_GeneNameID_processed %>%
+      # Old strategy (in case professor want's the previous one)
+      #filter(
+      #  evalue.Plat < evalue.Ref, #só com e-value -> 36
+      #  OS.Ref == OS.Plat #evalue e mesmo OS -> 32
+      #)
+      # New strategy (Sat May  3 18:51:55 2025)
+      filter(
+        pident_category.Ref == "Excellent",
+        evalue_category.Ref == "Excellent",
+        pident_category.Plat == "Excellent",
+        evalue_category.Plat == "Excellent",
+        
+        OS.Ref == OS.Plat
+      )
     
     
+    #View(putative_plat_data)
     
-    
-    
+    # To confirm if the filtering was well done  
+    #View(putative_plat_data[, c("evalue.Plat", "evalue.Ref","OS.Ref","OS.Plat")]) # -> 32 GeneNameID
+    #putative_plat_data%>% count(OS.Ref)
     
     
     # Summary of the analysis:
-    # add to the summary the number os genNameID in reference_data, and plat_data
-    # add the number and percentage of GeneNameID in common
-    # dos quais
-    # o número de GeneNameID em que o organismo é igual entre as duas data
     summary <- paste(
-      "--- summary ---",
-      paste("There are", nrow(matched_GeneNameID), "GeneNameID in common"),
-      "of which : ",
-      
+      "--- SUMMARY ---",
+      paste("Total GeneNameID in reference data:", nrow(reference_data)),
+      paste("Total GeneNameID in plat data:", nrow(plat_data)),
+      paste("GeneNameID in common:", nrow(matched_GeneNameID)),
+      "",
+      "--- Categories ---",
+      paste("pident (Ref):", format_table(table(matched_GeneNameID_processed$pident_category.Ref))),
+      paste("evalue (Ref):", format_table(table(matched_GeneNameID_processed$evalue_category.Ref))),
+      paste("pident (Plat):", format_table(table(matched_GeneNameID_processed$pident_category.Plat))),
+      paste("evalue (Plat):", format_table(table(matched_GeneNameID_processed$evalue_category.Plat))),
+      "",
+      "--- OS in common (examples) ---",
+      paste("Common GeneNameID with same OS:", 
+            sum(matched_GeneNameID$OS.Ref == matched_GeneNameID$OS.Plat)),
+      paste("Most common organism in OS.Ref:", 
+            names(which.max(table(matched_GeneNameID$OS.Ref)))),
+      paste("Most common organism in OS.Plat:", 
+            names(which.max(table(matched_GeneNameID$OS.Plat)))),
+      "",
+      "--- Putative parasite genes ---",
+      "",
+      "criteria:",
+      "e-value == Excellent (evalue <= 1e-70)",
+      "pident == Excellent (pident >= 70)",
+      "Equal organism",
+      "",
+      paste("We identify a total of", nrow(putative_plat_data), "putative parasite genes"),
+      paste(putative_plat_data$GeneNameID, collapse = ", "),
+      "",
+      paste("pident (Ref): Min:", min(putative_plat_data$pident.Ref), " | Max:", max(putative_plat_data$pident.Ref)),
+      paste("evalue (Ref): Min:", min(putative_plat_data$evalue.Ref), " | Max:", max(putative_plat_data$evalue.Ref)),
+      paste("pident (Plat): Min:", min(putative_plat_data$pident.Plat), " | Max:", max(putative_plat_data$pident.Plat)),
+      paste("evalue (Plat): Min:", min(putative_plat_data$evalue.Plat), " | Max:", max(putative_plat_data$evalue.Plat)),
       "---------------",
+      "",
       sep = "\n"
-      )
+    )
     
-    cat(summary, "\n")
-    
+    # Print summary
+    cat(summary, sep = "\n")
     
   } else {
     cat("Coun't identify putative platyhelminthes genes")
   }
-  
-  
-  
-  #INCOMPLETOOOOOOOOOOOOOOOOOOOOOOOOO 
-  
-  
+  return(putative_plat_data)
 }
-
-
-
 
 
 
