@@ -26,6 +26,9 @@ library(stringr)
 
 ## BiocManager
 library(tximport) 
+library(limma)
+library(edgeR) # require package: limma
+
 
 ## tidyverse
 
@@ -456,7 +459,8 @@ identify_putative_plat_genes <- function(reference_data, plat_data){
     #putative_plat_data%>% count(OS.Ref)
     
     
-    # Summary of the analysis:
+    # --------------------------------------------------------------------------
+    # Print summary ------------------------------------------------------------
     summary <- paste(
       "--- SUMMARY ---",
       paste("Total GeneNameID in reference data:", nrow(reference_data)),
@@ -498,12 +502,251 @@ identify_putative_plat_genes <- function(reference_data, plat_data){
     
     # Print summary
     cat(summary, sep = "\n")
+    # --------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
+    
     
   } else {
     cat("Coun't identify putative platyhelminthes genes")
   }
   return(putative_plat_data)
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#' Title
+#' 
+#' 
+#' 
+#' @param count_data A dataframe containing count data with gene identifiers
+#' @param model_type Statistical model ("QLF" or "LRT")
+#' @param use_filter Logical for applying low expression filtering
+#' @param use_lfc Logical for applying log-fold change threshold
+#' 
+#' @return
+#' 
+#' @references https://doi.org/10.12688/f1000research.8987.2
+#'             edgeRUsersGuide()
+#'                
+#' 
+#' @example 
+#' 
+perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
+  
+  data <- data
+  
+  # constants
+  p_value <- 0.05 
+  log_fold_change <- 1.5
+  adjust_method <- "fdr"
+ 
+  
+  experimental_groups <- c(
+    "Sp_TR","Su_TR","Su_RA",
+    "Sp_RF","Sp_TR","Sp_RA",
+    "Su_RF" ,"Su_TR" ,"Sp_RA",
+    "Sp_TR","Sp_RF","Sp_RA",
+    "Su_RF","Su_TR","Sp_RF",
+    "Su_RF","Su_RA","Su_RA")
+   
+  
+  # data preparation -----------------------------------------------------------
+
+  
+  dge <- DGEList(counts = data[ ,17:34], 
+                 group = experimental_groups, 
+                 genes = data[ ,1])
+  
+  
+  dge$samples
+  
+  
+  # pre-processing -------------------------------------------------------------
+  
+  
+  ##  Filtering to remove low counts
+  if(use_filter){
+ 
+    keep <- filterByExpr(dge, group = experimental_groups)
+            # https://rdrr.io/bioc/edgeR/man/filterByExpr.html 
+            # (BIG ACHO) same as:
+            # rowSum(cpm(deg) >  10/min.library size in millions) >= num_replicates
+    table(keep)
+    dge <- dge[keep, ,keep.lib.sizes = FALSE]
+    
+  }
+  
+  
+  
+  ##  Normalization for composition bias
+      #  Normalization by trimmed mean of M values (TMM)
+      #  eliminate composition biases between libraries
+  dge <- calcNormFactors(dge)
+  dge$samples
+  
+  
+  
+  # Model setup ----------------------------------------------------------------
+  
+  design <- model.matrix(~0+experimental_groups, data = dge$samples)
+  colnames(design) <- levels(dge$samples$group)
+  design
+  
+  
+  # Dispersion estimation ------------------------------------------------------
+  
+  dge <- estimateDisp(dge, design)
+  #plotBCV(dge)
+  
+  
+  # Model fitting --------------------------------------------------------------
+  
+  
+  if (model_type == "QLF"){
+    fit <- glmQLFit(dge, design, robust = TRUE)
+    head(fit$coefficients)
+    plotQLDisp(fit)
+  } else {
+    fit <- glmFit(dge, design)
+    head(fit$coefficients)
+  }
+  
+  
+  
+  # Testing for differential expression ----------------------------------------
+  
+  
+  result_list <-list()
+  decideTest_list <- list()
+  
+  
+  ## (2 seasons + 3 sites)
+  ## seasons: spring | summer
+  ## sites: Ria de Aveiro | Troia | Ria Formosa
+  
+  ## single contrasts: 
+  ## season vs season in site
+  ## site vs site in season
+  
+  # Define contrast pairs-------
+  my_contrasts <- makeContrasts(
+    Sp.RAvsTR = Sp_RA - Sp_TR, 
+    Sp.RAvsRF = Sp_RA - Sp_RF,
+    Sp.TRvsRF = Sp_TR - Sp_RF,
+    
+    Su.RAvsTR = Su_RA - Su_TR,
+    Su.RAvsRF = Su_RA - Su_RF,
+    Su.TRvsRF = Su_TR - Su_RF,
+    
+    RA.SpvsSu = Sp_RA - Su_RA,
+    TR.SpvsSu = Sp_TR - Su_TR,
+    RF.SpvsSu = Sp_RF - Su_RF,
+    levels = design
+  )
+  # ----------------------------
+  
+  contrast_name <- colnames(my_contrasts)
+  
+  for(name in contrast_name){  
+    
+    cat("Performing contrast: ", name, "\n")
+    
+    if(model_type == "QLF"){
+      result <- glmQLFTest(fit, contrast = my_contrasts[,name])
+    } else {
+      result <- glmRT(fit, contrast = my_contrasts[,name])
+    }
+    
+    
+    
+    # Assessing Results  -------------------------------------------------------
+    
+    if(use_lfc){
+      # Identify which genes are significantly differentially expressed for each
+      # contrast from a fit object containing p-values and test statistics.
+      summary_result <- summary(decideTests(result,
+                                            p.value = p_value,
+                                            lfc = log_fold_change,
+                                            adjust.method = adjust_method))
+      
+      decideTest_result <- as.data.frame(decideTests(result,
+                                                     p.value = p_value,
+                                                     lfc = log_fold_change,
+                                                     adjust.method = adjust_method))
+    }else{
+      summary_result <- summary(decideTests(result,
+                                            p.value = p_value,
+                                            adjust.method = adjust_method))
+      
+      decideTest_result <- as.data.frame(decideTests(result,
+                                                     p.value = p_value,
+                                                     adjust.method = adjust_method))
+    }
+    
+    
+    # Extracts the most differentially expressed genes 
+    DEGs <- topTags(result,
+                    n = nrow(result$table),
+                    p.value = p_value,
+                    adjust.method = adjust_method)$table
+    
+    
+    
+    
+    if(is.null(DEGs)){
+      cat("No significant DEG's found", "\n")
+      result_list[[name]] <- data.frame()
+      decideTest_list[[name]] <- data.frame()
+      next
+    }
+    
+    
+    # Processing Results  -----------------------------------------------------
+    
+    merge_degs_with_data <- merge(DEGs, data, by.x = "genes", by.y="GeneID")
+    result_list[[name]] <- merge_degs_with_data
+    
+    decideTest_result <- cbind(result, decideTest_result)
+    merge_decideTest_with_data <- merge(decideTest_result, data, by.x = "genes", by.y="GeneID")
+    decideTest_list[[name]] <- merge_decideTest_with_data
+    
+    print(summary_result)
+  }
+  
+  
+  # ----------------------------------------------------------------------------
+  # Print parameter summary ----------------------------------------------------
+  
+  # INCOMPLETO !!
+  
+  # ----------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------
+  
+  
+  return(list(DEG_result = result_list, decideTest_result=decideTest_list))
+  
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
