@@ -193,8 +193,11 @@ save_to_excel <- function(data, output_file) {
   } else if (is.list(data) && all(sapply(data, is.data.frame))) {
     
     for (name in names(data)) {
-      addWorksheet(work_book, name)
-      writeData(work_book, name, data[[name]])
+      df <- data[[name]]
+      if (nrow(df) > 0) {
+        addWorksheet(work_book, name)
+        writeData(work_book, name, df)
+      }
     }
   }
   
