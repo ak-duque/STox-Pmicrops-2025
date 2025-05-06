@@ -525,9 +525,6 @@ identify_putative_plat_genes <- function(reference_data, plat_data){
 
 
 
-
-
-
 #' Title
 #' 
 #' 
@@ -722,6 +719,8 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
     
     decideTest_result <- cbind(result, decideTest_result)
     merge_decideTest_with_data <- merge(decideTest_result, data, by.x = "genes", by.y="GeneID")
+    # fail: when we merge, the contrasts without dges will out output a empty df
+    # solution: for the contrast without dges don't merge?
     decideTest_list[[name]] <- merge_decideTest_with_data
     
     print(summary_result)
@@ -741,6 +740,62 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
   
 }
 
+
+
+
+
+
+
+
+#' Title
+#' 
+#' 
+#' 
+#' @param count_data A dataframe containing count data with gene identifiers
+#' @param model_type Statistical model ("QLF" or "LRT")
+#' @param use_filter Logical for applying low expression filtering
+#' @param use_lfc Logical for applying log-fold change threshold
+#' 
+#' @return
+#' 
+#' @references https://doi.org/10.12688/f1000research.8987.2
+#'             edgeRUsersGuide()
+#'                
+#' 
+#' @example 
+#' 
+run_and_save_DEG <- function(data, blast_siglas, model_type, 
+                             use_filter=TRUE,use_lfc = FALSE){
+  
+  
+  # --- run deg ---
+  results <- perform_DEG(data, 
+                         model_type,
+                         use_filter = use_filter,
+                         use_lfc = use_lfc)
+  
+  deg <- results[["DEG_result"]]
+  dt <- results[["decideTest_result"]]
+  
+  
+  # --- save deg ---
+  out_dir <- "./03-Output/01-DEG-Analysis/DEG-results"
+  
+  
+  filter_label <- ifelse(use_filter, # test (use_filter = TRUE or FALSE)
+                         "with-filterByExpr", # yes (use_filter = TRUE)
+                         "without-filterByExpr") # no (use_filter = FALSE)
+  
+  save_to_excel(deg, file.path(out_dir, filter_label,
+                               paste0("deg-", blast_siglas, ".xlsx")))
+  
+  save_to_excel(deg, file.path(out_dir, filter_label,
+                               paste0("decideTest-", blast_siglas, ".xlsx")))
+  
+  return(list(DEG_result=deg, decideTest_result= dt))              
+
+  
+}
 
 
 
