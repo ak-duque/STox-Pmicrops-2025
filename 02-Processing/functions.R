@@ -520,11 +520,6 @@ identify_putative_plat_genes <- function(reference_data, plat_data){
 
 
 
-
-
-
-
-
 #' Title
 #' 
 #' 
@@ -715,10 +710,12 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
     # Processing Results  -----------------------------------------------------
     
     merge_degs_with_data <- merge(DEGs, data, by.x = "genes", by.y="GeneID")
+    merge_degs_with_data <- merge_degs_with_data %>% arrange(desc(logFC))
     result_list[[name]] <- merge_degs_with_data
     
     decideTest_result <- cbind(result, decideTest_result)
     merge_decideTest_with_data <- merge(decideTest_result, data, by.x = "genes", by.y="GeneID")
+    
     # fail: when we merge, the contrasts without dges will out output a empty df
     # solution: for the contrast without dges don't merge?
     decideTest_list[[name]] <- merge_decideTest_with_data
@@ -751,16 +748,12 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
 #' 
 #' 
 #' 
-#' @param count_data A dataframe containing count data with gene identifiers
+#' @param data A dataframe containing count data with gene identifiers
 #' @param model_type Statistical model ("QLF" or "LRT")
 #' @param use_filter Logical for applying low expression filtering
 #' @param use_lfc Logical for applying log-fold change threshold
 #' 
 #' @return
-#' 
-#' @references https://doi.org/10.12688/f1000research.8987.2
-#'             edgeRUsersGuide()
-#'                
 #' 
 #' @example 
 #' 
@@ -801,6 +794,115 @@ run_and_save_DEG <- function(data, blast_siglas, model_type,
 
 
 
+
+
+
+#' Title
+#' 
+#' 
+#' 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#' 
+get_top10_degs <- function(result_list, use_filter = TRUE, blast_siglas){
+  
+  
+  top10 <- list()
+  
+  for (contraste_name in names(result_list)) {
+    
+    contrast <- result_list[[contraste_name]]
+    
+    if (nrow(contrast) > 0) {
+      
+      cat("\nPerforming contrast: ", contraste_name, "\n")
+      
+      ## Top10 ? smallest p-value| FDR (based on statistical testing)
+      
+      # Top 10 over-expressed|upregulated (logFC > 0)
+      top10_over <- contrast %>%
+        filter(logFC > 0) %>%
+        arrange(PValue) %>%
+        head(10)
+      
+      # Top 10 under-expressed|downregulated (logFC < 0)
+      top10_under <- contrast %>%
+        filter(logFC < 0) %>%
+        arrange(PValue) %>%
+        head(10)
+      
+      
+      # Top 10 global (independent of expression direction)
+      top10_global <- contrast %>%
+        arrange(PValue) %>%
+        head(10)
+      
+      min_fdr_gene <- top10_global %>%
+        filter(FDR == min(FDR)) %>%
+        pull(GeneNameID)
+      
+      max_fdr_gene <- top10_global %>%
+        filter(FDR == max(FDR)) %>% # devolve a linha completa
+        pull(GeneNameID) # devolve apenas o valor da coluna
+      
+      
+      # Dataframe with the top 10 under- plus the top 10 overexpressed genes
+      top10_over_top10_under <- rbind(top10_over, top10_under)
+      top10[[contraste_name]] <- top10_over_top10_under
+      
+      
+      
+      # Print parameter summary ----------------------------------------------------
+      summary_top10 <- paste(
+        "--- SUMMARY ---",
+        "",
+        "--- total counts ---",
+        paste("Total DEGs:", nrow(contrast)),
+        paste("Total over:", nrow(contrast%>%filter(logFC>0))),
+        paste("Total under:", nrow(contrast%>%filter(logFC<0))),
+        "",
+        "--- over-expressed (logFC > 0) ---",
+        paste(top10_over$GeneNameID, collapse = " |"),
+        "",
+        "--- under-expressed (logFC < 0) ---",
+        paste(top10_under$GeneNameID, collapse = " |"),
+        "",
+        "--- Global Top 10 (Independent of logFC) ---",
+        paste(top10_global$GeneNameID, collapse = " |"),
+        "",
+        "--- FDR Summary ---",
+        paste("FDR (Over): Min:", min(top10_over$FDR), " | Max:", max(top10_over$FDR)),
+        paste("FDR (Under): Min:", min(top10_under$FDR), " | Max:", max(top10_under$FDR)),
+        paste("FDR (Global): Min:", min(top10_global$FDR), " | Max:", max(top10_global$FDR)),
+        "-----------------------------------------------------------------------",
+        "",
+        sep = "\n"
+      )
+      # Print summary
+      cat(summary_top10, sep ="\n\n")
+      
+      # -------------------------------------------------------------------------
+      
+      
+
+    }
+
+  }
+  
+  
+  # --- save deg ---
+  out_dir <- "./03-Output/01-DEG-Analysis/DEG-results"
+  
+  filter_label <- ifelse(use_filter,"with-filterByExpr","without-filterByExpr")
+  
+  save_to_excel(top10, file.path(out_dir, filter_label, paste0("top10-", blast_siglas, ".xlsx")))
+  
+  
+  return(top10)
+}  
 
 
 
