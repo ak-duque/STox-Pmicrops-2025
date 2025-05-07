@@ -20,7 +20,6 @@
 
 ## ???
 library(openxlsx)
-library(dplyr)
 library(ggplot2)
 library(stringr)
 
@@ -31,6 +30,8 @@ library(edgeR) # require package: limma
 
 
 ## tidyverse
+library(tidyr)
+library(dplyr)
 
 
 
@@ -611,7 +612,7 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
   if (model_type == "QLF"){
     fit <- glmQLFit(dge, design, robust = TRUE)
     head(fit$coefficients)
-    plotQLDisp(fit)
+    #plotQLDisp(fit)
   } else {
     fit <- glmFit(dge, design)
     head(fit$coefficients)
@@ -877,6 +878,8 @@ get_top10_degs <- function(result_list, use_filter = TRUE, blast_siglas){
         paste("FDR (Over): Min:", min(top10_over$FDR), " | Max:", max(top10_over$FDR)),
         paste("FDR (Under): Min:", min(top10_under$FDR), " | Max:", max(top10_under$FDR)),
         paste("FDR (Global): Min:", min(top10_global$FDR), " | Max:", max(top10_global$FDR)),
+        # Nota.: The min /or max GeneNameID, coud be several, there is different
+        #         geneNameID with the same FDR
         "-----------------------------------------------------------------------",
         "",
         sep = "\n"
@@ -903,6 +906,69 @@ get_top10_degs <- function(result_list, use_filter = TRUE, blast_siglas){
   
   return(top10)
 }  
+
+
+
+
+
+
+
+
+
+
+
+
+
+#' Title
+#' 
+#' 
+#' 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#' 
+get_GeneNameID_contrasts <- function(deg_list) {
+  
+  # Remove empty data frames from the list
+  deg_list <- deg_list[sapply(deg_list, function(df) nrow(df) > 0)]
+  
+  # For each contrast, extract GeneNameID and rename the column to the contrast name
+  gene_dfs <- lapply(names(deg_list), function(contrast) {
+    deg_list[[contrast]] %>%
+      select(GeneNameID) %>%
+      rename(!!contrast := GeneNameID)
+  })
+  
+  # Combine all the data frames into one (uma em cima da outra)
+  contrasts_GeneNameID <- bind_rows(gene_dfs)
+  
+  # Convert to long format and summarize which contrasts each GeneNameID appears in
+  result <- contrasts_GeneNameID %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "contrast",
+      values_to = "GeneNameID",
+      values_drop_na = TRUE
+    ) %>%
+    group_by(GeneNameID) %>%
+    summarize(
+      contrast = toString(unique(contrast)),
+      .groups = "drop"
+    )
+  
+  
+  
+  # MEGA IMCOMPLETE!! I need to think better about this one...
+  b <- a %>% count(contrast) %>% arrange(desc(n))
+  
+  
+  return(result)
+}
+
+
+
 
 
 
