@@ -18,7 +18,7 @@
 
 # package dependencies
 
-## ???
+## CRAN
 library(openxlsx)
 library(ggplot2)
 library(stringr)
@@ -27,14 +27,13 @@ library(stringr)
 library(tximport) 
 library(limma)
 library(edgeR) # require package: limma
-
+library(UniprotR)
+library(multiGSEA)
+library(org.Dr.eg.db)
 
 ## tidyverse
 library(tidyr)
 library(dplyr)
-
-
-
 
 
 
@@ -210,6 +209,32 @@ save_to_excel <- function(data, output_file) {
 
 
 
+#' Read excel file with multiple sheets
+#' 
+#' @param path the directory of the file
+#' @return list of dataframes(sheets)
+#' @references https://www.geeksforgeeks.org/how-to-read-a-xlsx-file-with-multiple-sheets-in-r/
+#' 
+read_excel <- function(path){
+  
+  # getting data from sheets
+  sheets <- openxlsx::getSheetNames(path)
+  dataframe <- lapply(sheets, openxlsx::read.xlsx, xlsxFile=path)
+  
+  # assigning names to dataframe
+  names(dataframe) <- sheets
+  
+  return(dataframe)
+}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -363,7 +388,7 @@ evaluate_sequence_quality <- function(value, metric) {
       value > 1 ~ "Overexpressed",
       TRUE ~ "No Significant"
     )
-  } else if (metric == "pvalue") {
+  } else if (metric == "FDR") {
     case_when(
       value < 0.01 ~ "Excellent",
       value <= 0.05 ~ "Good",
@@ -541,7 +566,7 @@ identify_putative_plat_genes <- function(reference_data, plat_data){
 perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
   
   data <- data
-  
+
   # constants
   p_value <- 0.05 
   log_fold_change <- 1.5
@@ -578,7 +603,7 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
             # https://rdrr.io/bioc/edgeR/man/filterByExpr.html 
             # (BIG ACHO) same as:
             # rowSum(cpm(deg) >  10/min.library size in millions) >= num_replicates
-    table(keep)
+    #table(keep)
     dge <- dge[keep, ,keep.lib.sizes = FALSE]
     
   }
@@ -608,11 +633,15 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
   
   # Model fitting --------------------------------------------------------------
   
-  
+  # Model: Quasi-likelihood negative binomial generalized log-linear model
+  # Fit  : quasi-likelihood F-test
   if (model_type == "QLF"){
     fit <- glmQLFit(dge, design, robust = TRUE)
     head(fit$coefficients)
     #plotQLDisp(fit)
+  
+  # Model: Negative binomial generalized log-linear model 
+  # Fit  : likelihood ratio test  
   } else {
     fit <- glmFit(dge, design)
     head(fit$coefficients)
@@ -653,7 +682,7 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
   # ----------------------------
   
   contrast_name <- colnames(my_contrasts)
-  
+
   for(name in contrast_name){  
     
     cat("Performing contrast: ", name, "\n")
@@ -700,26 +729,33 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
     
     
     
+
+    
+    # Processing Results  -----------------------------------------------------
+    
+    
     if(is.null(DEGs)){
       cat("No significant DEG's found", "\n")
       result_list[[name]] <- data.frame()
+      
+      
       decideTest_list[[name]] <- data.frame()
+      decideTest <- cbind(result, decideTest_result)
+      decideTest_with_data <- merge(decideTest, data, by.x = "genes", by.y="GeneID")
+      decideTest_list[[name]] <- decideTest_with_data
       next
     }
     
     
-    # Processing Results  -----------------------------------------------------
     
     merge_degs_with_data <- merge(DEGs, data, by.x = "genes", by.y="GeneID")
     merge_degs_with_data <- merge_degs_with_data %>% arrange(desc(logFC))
     result_list[[name]] <- merge_degs_with_data
     
-    decideTest_result <- cbind(result, decideTest_result)
-    merge_decideTest_with_data <- merge(decideTest_result, data, by.x = "genes", by.y="GeneID")
     
-    # fail: when we merge, the contrasts without dges will out output a empty df
-    # solution: for the contrast without dges don't merge?
-    decideTest_list[[name]] <- merge_decideTest_with_data
+    decideTest <- cbind(result, decideTest_result)
+    decideTest_with_data <- merge(decideTest, data, by.x = "genes", by.y="GeneID")
+    decideTest_list[[name]] <- decideTest_with_data
     
     print(summary_result)
   }
@@ -734,7 +770,7 @@ perform_DEG <-function(data, model_type, use_filter = FALSE, use_lfc =FALSE){
   # ----------------------------------------------------------------------------
   
   
-  return(list(DEG_result = result_list, decideTest_result=decideTest_list))
+  return(list(DEG_result = result_list, decideTest_result = decideTest_list))
   
 }
 
@@ -783,11 +819,10 @@ run_and_save_DEG <- function(data, blast_siglas, model_type,
   save_to_excel(deg, file.path(out_dir, filter_label,
                                paste0("deg-", blast_siglas, ".xlsx")))
   
-  save_to_excel(deg, file.path(out_dir, filter_label,
+  save_to_excel(dt, file.path(out_dir, filter_label,
                                paste0("decideTest-", blast_siglas, ".xlsx")))
   
   return(list(DEG_result=deg, decideTest_result= dt))              
-
   
 }
 
@@ -826,14 +861,17 @@ get_top10_degs <- function(result_list, use_filter = TRUE, blast_siglas){
       # Top 10 over-expressed|upregulated (logFC > 0)
       top10_over <- contrast %>%
         filter(logFC > 0) %>%
-        arrange(PValue) %>%
-        head(10)
+        # arrange -> menor -> maior
+        # arrange (desc) -> maior -> menor
+        arrange(desc(PValue)) %>%
+        head(10) # os maiores
       
       # Top 10 under-expressed|downregulated (logFC < 0)
       top10_under <- contrast %>%
         filter(logFC < 0) %>%
+        # menor -> maior
         arrange(PValue) %>%
-        head(10)
+        head(10) # os menores 
       
       
       # Top 10 global (independent of expression direction)
@@ -916,9 +954,6 @@ get_top10_degs <- function(result_list, use_filter = TRUE, blast_siglas){
 
 
 
-
-
-
 #' Title
 #' 
 #' 
@@ -966,12 +1001,342 @@ get_GeneNameID_contrasts <- function(deg_list) {
   
   return(result)
 }
+# mudar o nome, que não se percebe bem! li outra vez e já não sabia o que era
 
 
 
 
 
 
+
+
+#' Title
+#' 
+#' 
+#' 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#' 
+common_deg_SP_Z <- function(deg_SP, deg_Z) {
+  
+  
+  merged_list <- list()  
+  not_in_common_list_SP <- list()
+  not_in_common_list_Z <- list()
+  
+  
+  for (contrast_name_Z in names(deg_Z)) {
+    for (contrast_name_SP in names(deg_SP)) {
+      if (contrast_name_SP == contrast_name_Z) {
+        
+        contrast_z  <- deg_Z[[contrast_name_Z]]
+        contrast_sp <- deg_SP[[contrast_name_SP]]
+        
+        # Check if either data frame is empty
+        if (nrow(contrast_z) == 0 || nrow(contrast_sp) == 0) {
+          next  
+        }
+        
+        common_degs <- merge(contrast_sp, contrast_z, by = "GeneNameID",
+                             suffixes = c(".SP", ".Z"))
+        
+        common_degs  <- common_degs  %>%
+          select(GeneNameID,
+                 logFC.SP,logFC.Z, 
+                 PValue.SP, PValue.Z,
+                 FDR.SP, FDR.Z,
+                 pident.SP, pident.Z,
+                 evalue.SP, evalue.Z,
+                 OS.SP,OS.Z) %>%
+          arrange(logFC.SP) %>% #(menor -> maior)
+          mutate(
+            pident_category.SP = evaluate_sequence_quality(pident.SP, "pident"),
+            pident_category.Z = evaluate_sequence_quality(pident.Z, "pident"),
+            
+            evalue_category.SP = evaluate_sequence_quality(evalue.SP, "evalue"),
+            evalue_category.Z = evaluate_sequence_quality(evalue.Z, "evalue"),
+            
+            FDR_category.SP = evaluate_sequence_quality(FDR.SP, "FDR"),
+            FDR_category.Z = evaluate_sequence_quality(FDR.Z, "FDR"))
+        
+        
+        # Genes NOT in common --------------------------------------------------
+        not_in_common_SP <- anti_join(contrast_sp, contrast_z, by = "GeneNameID")
+        not_in_common_Z  <- anti_join(contrast_z, contrast_sp, by = "GeneNameID")
+        
+        
+        not_in_common_SP <- not_in_common_SP %>%
+          select(GeneNameID,logFC, PValue, FDR, pident, evalue, OS) %>%
+          arrange(logFC) %>%
+          mutate(
+            pident_category = evaluate_sequence_quality(pident, "pident"),
+            evalue_category = evaluate_sequence_quality(evalue, "evalue"),
+            FDR_category = evaluate_sequence_quality(FDR, "FDR"))
+        
+        not_in_common_Z <- not_in_common_Z %>%
+          select(GeneNameID,logFC, PValue, FDR, pident, evalue, OS) %>%
+          arrange(logFC) %>%
+          mutate(
+            pident_category = evaluate_sequence_quality(pident, "pident"),
+            evalue_category = evaluate_sequence_quality(evalue, "evalue"),
+            FDR_category = evaluate_sequence_quality(FDR, "FDR"))
+        # ----------------------------------------------------------------------
+        
+        # Save the data frame in the list
+        merged_list[[contrast_name_SP]] <- common_degs 
+        not_in_common_list_SP[[contrast_name_SP]] <- not_in_common_SP
+        not_in_common_list_Z[[contrast_name_Z]]   <- not_in_common_Z
+        
+        
+        # Mini summary
+        cat("\nContrast:", contrast_name_SP)
+        cat("\ndeg swiss-prot:", nrow(contrast_sp))
+        cat("\ndeg zebrafish:", nrow(contrast_z))
+        cat("\nIn common: ", nrow(common_degs))
+        cat("\nunder: ",nrow(common_degs %>% filter(logFC.SP < 0)))
+        cat("\nover: ", nrow(common_degs %>% filter(logFC.SP > 0)),"\n")
+        
+      }
+    }
+  }
+  
+  
+  return(list(
+    common = merged_list,
+    unique_SP = not_in_common_list_SP,
+    unique_Z = not_in_common_list_Z
+  ))
+  
+}
+
+
+
+
+
+
+
+
+#' Get uniprot information
+#' 
+#'  
+#' 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+get_uniprot_taxainfo <- function(deg_list, specific_accession = NULL) {
+  
+  uniprot_info <- list()
+
+  for (contrast_name in names(deg_list)) {
+    
+    contrast <- deg_list[[contrast_name]]
+    
+    if (nrow(contrast) > 0) {
+      
+      # Decide which accession(s) to use
+      Accession <- if (!is.null(specific_accession)) specific_accession else contrast$Accession
+      
+      ## 1. Get Taxonomy Information
+        TaxaObj <- GetNamesTaxa(Accession) 
+        merge_data <- merge(contrast, TaxaObj, by.x="Accession", by.y="Entry", all.x = TRUE)
+  
+      uniprot_info[[contrast_name]] <- merge_data
+    }
+  }
+  
+  return(uniprot_info)
+}
+
+
+
+  
+  
+
+
+
+
+#'  
+#' 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+process_STRINGdata <- function(uniprot_taxaobj){
+  
+  preprocessing <- function(uniprot_taxaobj){
+    uniprot_taxaobj %>%
+      select("Gene.Names..primary.", "logFC")%>%
+      arrange(logFC)}
+  
+  STRING_data <- lapply(uniprot_taxaobj, preprocessing)
+  
+  
+  return(STRING_data)
+}
+
+
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+process_GSEAdata <- function(uniprot_taxaobj){
+  
+  preprocessing <- function(df){
+    df %>%
+      select("Accession", "logFC", "PValue")%>%
+      arrange(PValue)}
+  
+  GSEA_data <- lapply(uniprot_taxaobj, preprocessing)
+  
+  
+  return(GSEA_data)
+}
+
+
+
+
+
+
+
+
+
+
+process_EnrichmentScores <- function(enrichment_scores){
+  
+  # convert to a data frame
+  ES <- as.data.frame(enrichment_scores)
+
+  # leadingEdge -> [1] "A8E7C5" "Q6PC64" -> list 
+  # collapse leadingEdge list to string (to facilitate data manipulation)
+  
+  ES$leadingEdge <- sapply(ES$leadingEdge,
+                           function(x) paste(x, collapse = ";"))
+  
+  # out: leadingEdge -> "A8E7C5;Q6PC64" -> string
+  
+  # select only the significant and order
+  ES <- ES %>% 
+    filter(padj < 0.05) %>%
+    arrange(padj)
+  
+  # remove pathway prefix if present
+  pathway_prefix <- "^\\(KEGG\\)"
+  if ("pathway" %in% colnames(ES)){
+    ES$pathway <- sub(pathway_prefix, "", ES$pathway)
+  }
+  
+  return(ES)
+}
+
+
+
+
+
+
+
+
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @references https://www.bioconductor.org/packages/devel/bioc/vignettes/multiGSEA/inst/doc/multiGSEA.html
+#' 
+#' @example 
+#'
+perform_GSEA <- function(GSEA_data){
+  
+  databases <- c("kegg") # options: kegg, reactome
+  
+  pathways <- getMultiOmicsFeatures(
+    dbs = databases,
+    layer = "transcriptome",
+    returnTranscriptome = "UNIPROT", # options: SYMBOL, ENTREZID, UNIPROT, ENSEMBL, REFSEQ
+    useLocal = FALSE,
+    organism = "drerio"
+  )
+  
+  pathways_short <- lapply(names(pathways), function(name){
+    head(pathways[[name]], 2)
+  })
+  names(pathways_short) <- names(pathways)
+  #pathways_short
+  
+  
+  # ES - [E]nrichemnt [S]core
+  raw_ES <- list()
+  processed_ES <- list()
+  
+  
+  for (contraste_name in names(GSEA_data)) {
+    
+    
+    # test
+    #contrast <- GSEA_data[["Sp.RAvsTR"]]
+    
+    contrast <- GSEA_data[[contraste_name]]
+    
+    if (nrow(contrast) > 0) {
+      
+      
+      omics_data <- initOmicsDataStructure(layer = c("transcriptome"))
+      layers <- names(omics_data)
+      print(layers)
+      
+      data("transcriptome") # df dim - 15174 4(Symbol|logFC|pValue|adj.pValue)
+      
+      # ranks
+      omics_data$transcriptome <- rankFeatures(
+        contrast$logFC,
+        contrast$PValue
+      )
+      
+      #print(head(omics_data$transcriptome))
+      
+      names(omics_data$transcriptome) <- contrast$Accession
+      #print(head(omics_data$transcriptome))
+      
+      set.seed(42)
+      
+      enrichment_scores <- multiGSEA(pathways, 
+                                     omics_data) # ranks
+      
+      #print(head(enrichment_scores))
+      #View(enrichment_scores[["transcriptome"]])
+      
+      
+      # Save the results
+      
+      
+      if(is.null(enrichment_scores)){
+        raw_ES[[contraste_name]] <- data.frame()
+        processed_ES[[contraste_name]] <- data.frame()
+        next
+      }
+      
+      
+      raw_ES[[contraste_name]] <- enrichment_scores
+      
+      processed_enrichment_scores <- process_EnrichmentScores(enrichment_scores$transcriptome)
+      processed_ES[[contraste_name]] <- processed_enrichment_scores
+      
+    }
+  
+  }
+  
+  return(list(ES_raw_result = raw_ES, ES_processed_result= processed_ES))
+}
 
 
 
