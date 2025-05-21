@@ -117,9 +117,6 @@ save(abundance_tsv, file = "03-Output/01-DEG-Analysis/analysis-ready-data/abunda
 
 
 
-
-
-
 # 3. Merge Blastp(1.) + Kallisto(2.) counts
 
 ## Preparing data to merge | Purpose .: Be easy to merge
@@ -163,6 +160,10 @@ save_to_excel(BpK_plat, "03-Output/01-DEG-Analysis/preprocessed-data/BpK-Plat.xl
 
 
 
+
+
+
+
 # ==============================================================================
 # TASK 2 - Blablabla blablabla blabla
 # ==============================================================================
@@ -172,141 +173,444 @@ BpK_swissprot <- read.xlsx("03-Output/01-DEG-Analysis/preprocessed-data/BpK-Swis
 BpK_zebrafish <- read.xlsx("03-Output/01-DEG-Analysis/preprocessed-data/BpK-Zebrafish.xlsx")
 BpK_plat <- read.xlsx("03-Output/01-DEG-Analysis/preprocessed-data/BpK-Plat.xlsx")
 
-load("03-Output/01-DEG-Analysis/analysis-ready-data/abundance_tsv")
 
 
 
-
-
-
-# Prepare data to plot --------------
-
-
-S <- BpK_swissprot %>%
-  select(c("pident","evalue")) %>%
-  mutate(blast = "Swissprot") # create a new column named blast
-  
-Z <- BpK_zebrafish %>%
-  select(c("pident","evalue")) %>%
-  mutate(blast = "Zebrafish")
-
-P <- BpK_plat %>%
-  select(c("pident","evalue")) %>%
-  mutate(blast = "Platyhelminthes")
-
-all_blast <- bind_rows(S,Z,P)
-head(all_blast)
-View(all_blast)
-
-
-all_blast <- all_blast %>%
-  mutate(
-    category = case_when(
-      pident < 30 ~ "Bad",
-      pident >= 30 & pident <= 70 ~ "Good",
-      pident > 70 ~ "Excellent"
-    )
-  )
-
-head(all_blast)
-View(all_blast)
-
-print(table(all_blast$category))
-
-summary <- all_blast %>%
-  count(blast, category)
-print(summary)
-
-
-
-
-# Data prepared --------------
-
-
-
-
+# Process data: 
 Data_SP <- process_BpK_data(BpK_swissprot) #15947
-save_to_excel(Data_SP, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-SP.xlsx")
+#save_to_excel(Data_SP, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-SP.xlsx")
 
 Data_Z <- process_BpK_data(BpK_zebrafish) #2975
-save_to_excel(Data_Z, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-Z.xlsx")
+#save_to_excel(Data_Z, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-Z.xlsx")
 
 Data_P <- process_BpK_data(BpK_plat) #145
-save_to_excel(Data_P, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-P.xlsx")
+#save_to_excel(Data_P, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-P.xlsx")
 
 
-# Prepare data to plot --------------
-S2 <- Data_SP %>%
-  select(c("pident","evalue")) %>%
-  mutate(blast = "Swissprot") # create a new column named blast
-
-Z2 <- Data_Z %>%
-  select(c("pident","evalue")) %>%
-  mutate(blast = "Zebrafish")
-
-P2 <- Data_P %>%
-  select(c("pident","evalue")) %>%
-  mutate(blast = "Platyhelminthes")
-
-all_blast2 <- bind_rows(S2,Z2,P2)
-head(all_blast2)
-View(all_blast2)
 
 
-all_blast2 <- all_blast2 %>%
-  mutate(
-    category = case_when(
-      pident < 30 ~ "Bad",
-      pident >= 30 & pident <= 70 ~ "Good",
-      pident > 70 ~ "Excellent"
-    )
-  )
-
-head(all_blast2)
-View(all_blast2)
-
-print(table(all_blast2$category))
+# ==============================================================================
+# TASK 2.1 - Global annotation performance 
+# ==============================================================================
 
 
-summary2 <- all_blast2 %>%
-  group_by(blast, category) %>% # agrupar
-  summarise(count = n(), .groups = "drop") %>%  #.groups = "drop" serve para desagrupar
-  group_by(blast) %>%
-  mutate(percentage = count / sum(count) * 100)
+# 2.1.1 e-value and pident behavior (before and after processing)
 
 
-ggplot(summary2, aes(x = category, y = percentage, fill = blast)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(
-    title = "Percentagem das categorias pident por base de dados",
-    x = "Categoria",
-    y = "Percentagem (%)",
-    fill = "Base de dados"
-  ) +
-  scale_y_continuous(labels = scales::percent_format(scale = 1))
+## Pident before processing :
+
+# Prepare each data set
+barData_BpKsp <- process_barplot_data(BpK_swissprot, "swissprot", metric = "pident")
+barData_BpKz <- process_barplot_data(BpK_zebrafish, "zebrafish", metric = "pident")
+barData_BpKp <- process_barplot_data(BpK_plat, "platyhelminthes", metric = "pident")
+
+data_list <- list("Swiss-prot" = barData_BpKsp, 
+                  "Zebrafish" = barData_BpKz, 
+                  "Platyhelminth" = barData_BpKp)
+
+barData <- prepare_summary(data_list)
+
+## Bar plot
+plot_barplot(barData, save_plot = TRUE, 
+             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-pident-before-processing.pdf" )
 
 
-ggplot(summary2, aes(x = category, y = percentage, fill = blast)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = sprintf("%.1f%%", percentage)),
-            position = position_dodge(width = 0.9), vjust = -0.5) +
-  labs(
-    title = "Percentagem das categorias pident por base de dados",
-    x = "Categoria",
-    y = "Percentagem (%)",
-    fill = "Base de dados"
-  ) +
-  scale_y_continuous(labels = scales::percent_format(scale = 1))
+## Pident after processing :
 
-# Data prepared --------------
+# Prepare each data set
+barData_sp <- process_barplot_data(Data_SP, "swissprot", metric = "pident")
+barData_z <- process_barplot_data(Data_Z, "zebrafish", metric = "pident")
+barData_p <- process_barplot_data(Data_P, "platyhelminthes", metric = "pident")
+
+data_list <- list("Swiss-prot" = barData_sp,
+                  "Zebrafish" = barData_z, 
+                  "Platyhelminth" = barData_p)
+
+barData <- prepare_summary(data_list)
+
+## Bar plot
+plot_barplot(barData, save_plot = TRUE, 
+             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-pident-after-processing.pdf" )
 
 
 
 
 
 
-# Organism part is also missing!
-# Add PCA's part!! Is missing! 
+## E-value before processing :
+
+barData_BpKsp <- process_barplot_data(BpK_swissprot, "swissprot", metric = "evalue")
+barData_BpKz <- process_barplot_data(BpK_zebrafish, "zebrafish", metric = "evalue")
+barData_BpKp <- process_barplot_data(BpK_plat, "platyhelminthes", metric = "evalue")
+
+data_list <- list("Swiss-prot" = barData_BpKsp, 
+                  "Zebrafish" = barData_BpKz, 
+                  "Platyhelminth" = barData_BpKp)
+
+barData <- prepare_summary(data_list)
+
+## Bar plot
+plot_barplot(barData, save_plot = FALSE)
+
+plot_barplot(barData, save_plot = TRUE, 
+             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-evalue-before-processing.pdf" )
+
+
+
+
+## E-value after processing :
+
+barData_sp <- process_barplot_data(Data_SP, "swissprot", metric = "evalue")
+barData_z <- process_barplot_data(Data_Z, "zebrafish", metric = "evalue")
+barData_p <- process_barplot_data(Data_P, "platyhelminthes", metric = "evalue")
+
+data_list <- list("Swiss-prot" = barData_sp,
+                  "Zebrafish" = barData_z, 
+                  "Platyhelminth" = barData_p)
+
+barData <- prepare_summary(data_list)
+
+## Bar plot
+plot_barplot(barData, save_plot = FALSE)
+
+plot_barplot(barData, save_plot = TRUE, 
+             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-evalue-after-processing.pdf" )
+
+
+
+
+
+
+
+
+
+# 2.1.2 Common GeneNameID's on the different BLAST's outputs
+
+# Before processing
+Overlap_BpKSp_and_BpKZ <- analyse_overlap(BpK_swissprot, BpK_zebrafish,"swissprot", "zebrafish")
+Overlap_BpKSp_and_BpKP <- analyse_overlap(BpK_swissprot, BpK_plat,"swissprot", "plat")
+Overlap_BpKZ_and_BpKP <- analyse_overlap(BpK_zebrafish, BpK_plat,"zebrafish", "plat")
+
+# After processing 
+Overlap_Sp_and_Z <- analyse_overlap(Data_SP, Data_Z,"swissprot", "zebrafish")
+Overlap_Sp_and_P <- analyse_overlap(Data_SP, Data_P,"swissprot", "plat")
+Overlap_Z_and_P <- analyse_overlap(Data_Z, Data_P,"zebrafish", "plat")
+
+
+## Extra 
+# We notice that : common GeneID != common GeneNameID 
+# WHY? I don't understand why this happen...
+
+GeneID_Overlap_Sp_and_P <- analyse_overlap(Data_SP, Data_P,"swissprot", "plat",
+                                           column_name = "GeneID")
+GeneNameID_Overlap_Sp_and_P <- analyse_overlap(Data_SP, Data_P,"swissprot", "plat",
+                                               column_name = "GeneNameID")
+
+## Venn Diagram
+# Note.: I know it doesn't follow the code good practice rules, but is good enough...
+vennData <- list("Swiss-prot" = BpK_swissprot$GeneID,
+                 "Zebra-fish" = BpK_zebrafish$GeneID,
+                 "Platyhelminth" = BpK_plat$GeneID)
+
+plot_vennDiagram(vennData, save_plot=TRUE, 
+                 output_file="./03-Output/01-DEG-Analysis/annotation-results/figures/vennDiagram-BpKcommonGeneID.pdf")
+
+
+# ==============================================================================
+# TASK 2.2 - Taxonomic representation \ Putative parasitic genes 
+# ==============================================================================
+
+
+
+
+# 2.2.1 Taxonomic representation
+
+taxData <- list(SP_Organisms = Data_SP, P_Organisms = Data_P, Z_Organisms = Data_Z)
+
+taxResults <- analyse_taxonomic_representation(taxData)
+#save_to_excel(taxResults, 
+#              output_file = "./03-Output/01-DEG-Analysis/annotation-results/tables/taxonomic-representation.xlsx")
+
+
+
+
+## Pie chart
+
+
+
+
+# 2.2.2 Fish organisms (Is not 100% correct, but is good enough)
+
+# fish species: ----
+fish <- c('Acipenser baerii',
+          'Acipenser transmontanus',
+          'Anguilla anguilla',
+          'Anguilla japonica',
+          'Anoplopoma fimbria',
+          'Argyrosomus regius',
+          'Boreogadus saida',
+          'Brachyopsis segaliensis',
+          'Carassius auratus',
+          'Catostomus commersonii',
+          'Chaenocephalus aceratus',
+          'Chauliodus sloani',
+          'Chelon auratus',
+          'Chelon ramada',
+          'Chionodraco hamatus',
+          'Ctenopharyngodon idella',
+          'Cynoscion nebulosus',
+          'Cyprinus carpio',
+          'Danio rerio',
+          'Devario aequipinnatus',
+          'Dicentrarchus labrax',
+          'Diplobatis ommata',
+          'Dissostichus eleginoides',
+          'Electrophorus electricus',
+          'Epinephelus akaara',
+          'Epinephelus coioides',
+          'Esox lucius',
+          'Formosania lacustris',
+          'Fundulus heteroclitus',
+          'Gadus morhua',
+          'Galeus melastomus',
+          'Gasterosteus aculeatus',
+          'Gillichthys mirabilis',
+          'Gillichthys seta',
+          'Haplochromis burtoni',
+          'Haplochromis nubilus',
+          'Haplochromis xenognathus',
+          'Harpagifer antarcticus',
+          'Hemitripterus americanus',
+          'Heterodontus francisci',
+          'Heteropneustes fossilis',
+          'Hippocampus comes',
+          'Hippoglossus hippoglossus',
+          'Ichthyomyzon unicuspis',
+          'Ictalurus punctatus',
+          'Katsuwonus pelamis',
+          'Labeo rohita',
+          'Lepomis macrochirus',
+          'Leucoraja ocellata',
+          'Lophius americanus',
+          'Makaira nigricans',
+          'Megalobrama amblycephala',
+          'Meiacanthus atrodorsalis',
+          'Micropogonias undulatus',
+          'Micropterus salmoides',
+          'Misgurnus fossilis',
+          'Monopterus albus',
+          'Mullus surmuletus',
+          'Myoxocephalus octodecemspinosus',
+          'Notemigonus crysoleucas',
+          'Oncorhynchus keta',
+          'Oncorhynchus kisutch',
+          'Oncorhynchus masou',
+          'Oncorhynchus mykiss',
+          'Oncorhynchus nerka',
+          'Oncorhynchus tshawytscha',
+          'Oplegnathus fasciatus',
+          'Opsanus tau',
+          'Oreochromis mossambicus',
+          'Oreochromis niloticus',
+          'Oryzias javanicus',
+          'Oryzias latipes',
+          'Oryzias luzonensis',
+          'Osmerus mordax',
+          'Pagrus major',
+          'Paralichthys olivaceus',
+          'Paramisgurnus dabryanus',
+          'Petromyzon marinus',
+          'Pleuronectes platessa',
+          'Poecilia reticulata',
+          'Poeciliopsis lucida',
+          'Pomatoschistus minutus',
+          'Prionace glauca',
+          'Protopterus aethiopicus',
+          'Psalidodon fasciatus',
+          'Pseudopleuronectes americanus',
+          'Salmo salar',
+          'Salmo trutta',
+          'Salvelinus fontinalis',
+          'Scomber japonicus',
+          'Scomber scombrus',
+          'Scomberomorus niphonius',
+          'Scorpaena plumieri',
+          'Scyliorhinus stellaris',
+          'Seriola quinqueradiata',
+          'Siganus canaliculatus',
+          'Siniperca chuatsi',
+          'Solea senegalensis',
+          'Sparus aurata',
+          'Squalus acanthias',
+          'Synanceia horrida',
+          'Synanceia verrucosa',
+          'Takifugu pardalis',
+          'Takifugu rubripes',
+          'Tetraodon fluviatilis',
+          'Tetraodon miurus',
+          'Tetraodon nigroviridis',
+          'Tetronarce californica',
+          'Thalassophryne nattereri',
+          'Thunnus obesus',
+          'Torpedo marmorata',
+          'Trachurus japonicus',
+          'Trematomus bernacchii',
+          'Trichopodus trichopterus',
+          'Xiphophorus hellerii',
+          'Xiphophorus maculatus')
+
+# --------------------------
+
+fish_SP <- Data_SP %>% filter(OS %in% fish)
+
+fish_occurrance <- fish_SP %>%
+  count(OS, name = "Count", sort = TRUE) %>%
+  as.data.frame()
+
+View(fish_occurrance)
+
+dim(fish_SP) # 2420
+View(fish_SP)
+
+fishGeneNameID <- fish_SP$GeneNameID
+fishGeneID <- fish_SP$GeneID
+length(fishGeneID)
+
+common_GeneNameID_fishSP_P <- get_common_GeneNameID(fish_SP, Data_P)  
+nrow(common_GeneNameID_fishSP_P) # 9
+View(common_GeneNameID_fishSP_P)
+
+common_GeneID_fishSP_P <- get_unique_GeneID(common_GeneNameID_fishSP_P)
+length(common_GeneID_fishSP_P) # 17
+
+fish_SP <- fish_SP[!fish_SP$GeneID %in% common_GeneID_fishSP_P, ] 
+dim(fish_SP) # 2410 
+
+
+
+
+
+
+# 2.2.3 Putative parasitic genes
+
+platGenes <- identify_putative_plat_genes(Data_SP, Data_P)
+View(platGenes)
+
+platGeneNameID <- platGenes$GeneNameID
+
+# Fail: Para o mesmo GeneName, em BLASTs diferentes, temos diferentes GeneID
+# Solution: Para evitar perder info, selecionamos todos por via das dúvidas
+platGeneID <- unique(c(platGenes$GeneID.Ref, platGenes$GeneID.Plat))
+
+
+
+
+
+
+
+# ==============================================================================
+# TASK 2.3 - Principal Component Analysis (PCA)
+# ==============================================================================
+# PCA to be done:
+# - with all abundance/counts (2)
+# - abundance/counts subsets:
+#       raw -----------------------
+#       - platGeneID (2)
+#       - swiss-prot fishGeneID (2)
+#       - all swiss-prot (2)
+#
+#       deg (under- over-) --------
+#       with filterByExpr ---------
+#       - all zebrafish (2)
+#       - all swiss-prot (2)
+#
+#       without filterByExpr ------
+#       - all zebrafish (2)
+#       - all swiss-prot (2)
+#
+#       dt (under- over- noSig)----
+#       with filterByExpr ---------
+#       - all zebrafish (2)
+#       - all swiss-prot (2)
+#
+#       without filterByExpr ------
+#       - all zebrafish (2)
+#       - all swiss-prot (2)
+# ------------------------------------------------------------------------------
+
+# FALTA: PCA plot !!!!!!!!!!!!!!!
+
+# Data needed:
+load("03-Output/01-DEG-Analysis/analysis-ready-data/abundance_tsv")
+View(abundance_tsv)
+
+# PCA data (subsets of counts \or abundance)
+# tsv_datatype
+# counts : 
+counts <- abundance_tsv$counts
+# abundance : 
+abundance <- abundance_tsv$abundance
+
+
+
+
+
+# 2.3.1 All count
+PCAdata <- process_PCAdata(tsv_data = counts)
+dim(PCAdata) # 266105
+pca_result <- runPCA(PCAdata)
+
+# 2.3.2 All abundance
+PCAdata <- process_PCAdata(tsv_data = abundance)
+dim(PCAdata) # 266105
+pca_result <- runPCA(PCAdata)
+
+
+# 2.3.3 Putative plat genes | counts
+PCAdata <- process_PCAdata(GeneID_vector = platGeneID, tsv_data = counts)
+dim(PCAdata) # 10
+pca_result <- runPCA(PCAdata)
+
+# 2.3.4 Putative plat genes | abundance
+PCAdata <- process_PCAdata(GeneID_vector = platGeneID, tsv_data = abundance)
+dim(PCAdata) # 10
+pca_result <- runPCA(PCAdata)
+
+
+# 2.3.5 Fish genes | counts
+PCAdata <- process_PCAdata(df1 = fish_SP, df2 = Data_Z, tsv_data = counts)
+dim(PCAdata) # 2254
+pca_result <- runPCA(PCAdata)
+
+# 2.3.6 Fish genes | abundance
+PCAdata <- process_PCAdata(df1 = fish_SP, df2 = Data_Z, tsv_data = abundance)
+dim(PCAdata) # 2254
+pca_result <- runPCA(PCAdata)
+
+
+# to be continued .....
+
+
+
+
+# ==============================================================================
+# TASK 2.4 - Remove putative plat genes
+# ==============================================================================
+
+dim(Data_SP) # 15947
+Data_SP <- Data_SP[!Data_SP$GeneID %in% platGeneID, ]
+dim(Data_SP) # 15937
+save_to_excel(Data_SP, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-SP[v2].xlsx")
+
+
+dim(Data_Z) # 2975
+Data_Z <- Data_Z[!Data_Z$GeneID %in% platGeneID, ] 
+dim(Data_Z) # 2974
+save_to_excel(Data_Z, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-Z[v2].xlsx")
+
+
+
+
 
 
 
@@ -323,9 +627,30 @@ ggplot(summary2, aes(x = category, y = percentage, fill = blast)) +
 # ------------------------------------------------------------------------------
 
 
+# Data needed:
 
-# --- DEG Analysis for swiss-prot ----------------------------------------------
-## -- filter by expression (with) ----------------------------------------------
+Data_SP <- read.xlsx("./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-SP[v2].xlsx")
+dim(Data_SP)
+
+Data_Z <- read.xlsx("./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-Z[v2].xlsx")
+dim(Data_Z)
+
+load("03-Output/01-DEG-Analysis/analysis-ready-data/abundance_tsv")
+# counts : 
+counts <- abundance_tsv$counts
+# abundance : 
+abundance <- abundance_tsv$abundance
+
+# ==============================================================================
+# TASK 3.1 - swiss-prot (with/without filterByExpr)
+# ==============================================================================
+
+
+# FALTA: Volcano Plot and Heatmap !!!!!!!!!!!!!!!
+
+
+
+# 3.1.1 with filterByExpr ----
 
 
 deg_SP_with_filter <-run_and_save_DEG(Data_SP,
@@ -351,18 +676,27 @@ View(Sp.RAvsTR[, c("logFC", "FDR", "evalue", "pident")])
 
 Sp.RAvsTR <- Sp.RAvsTR %>%
   # from lowest FDR to highest
-  arrange(FDR)  
+  arrange(FDR)
 
 View(Sp.RAvsTR)
 
 
-# Get top 10 + summary
+
+
+# Get top 10 
 top10_SP_with_filter <- get_top10_degs(deg_SP, use_filter = TRUE, "SP") 
 
+# Get uniprot information (degs only)
 
 
-# --- DEG Analysis for swiss-prot ----------------------------------------------
-## -- filter by expression (without) -------------------------------------------
+
+
+
+
+
+
+# 3.1.1 without filterByExpr ----
+
 
 deg_SP_without_filter <-run_and_save_DEG(Data_SP,
                                       "SP",
@@ -376,8 +710,78 @@ top10_SP_without_filter <- get_top10_degs(deg_SP_without_filter$DEG_result,
 
 
 
-# --- DEG Analysis for zebrafish -----------------------------------------------
-## -- filter by expression (with) ----------------------------------------------
+
+
+
+
+# 3.1.2 continuation .... Principal Component Analysis 
+
+
+# 3.1.2.1 degs | with filterByExpr | counts
+deg_SP <- deg_SP_with_filter$DEG_result
+
+PCAdata <- process_PCAdata(data = deg_SP, tsv_data = counts)
+dim(PCAdata) # 1625
+pca_result <- runPCA(PCAdata)
+
+# 3.1.2.2 degs | with filterByExpr | abundance
+PCAdata <- process_PCAdata(data = deg_SP, tsv_data = abundance)
+dim(PCAdata) # 1625
+pca_result <- runPCA(PCAdata)
+
+
+# 3.1.2.3 degs | without filterByExpr | counts
+deg_SP <- deg_SP_without_filter$DEG_result
+
+PCAdata <- process_PCAdata(data = deg_SP, tsv_data = counts)
+dim(PCAdata) # 1298
+pca_result <- runPCA(PCAdata)
+
+# 3.1.2.4 degs | without filterByExpr | abundance
+PCAdata <- process_PCAdata(data = deg_SP, tsv_data = abundance)
+dim(PCAdata) # 1298
+pca_result <- runPCA(PCAdata)
+
+
+
+# 3.1.2.5 dt | with filterByExpr | counts
+dt_SP <- deg_SP_with_filter$decideTest_result
+
+PCAdata <- process_PCAdata(data = dt_SP, tsv_data = counts)
+dim(PCAdata) # 9645
+pca_result <- runPCA(PCAdata)
+
+# 3.1.2.6 dt | with filterByExpr | abundance
+PCAdata <- process_PCAdata(data = dt_SP, tsv_data = abundance)
+dim(PCAdata) # 9645
+pca_result <- runPCA(PCAdata)
+
+
+# 3.1.2.7 dt | without filterByExpr | counts
+dt_SP <- deg_SP_without_filter$decideTest_result
+
+PCAdata <- process_PCAdata(data = dt_SP, tsv_data = counts)
+dim(PCAdata) # 15937
+pca_result <- runPCA(PCAdata)
+
+# 3.1.2.8 dt | without filterByExpr | abundance
+PCAdata <- process_PCAdata(data = dt_SP, tsv_data = abundance)
+dim(PCAdata) # 15937
+pca_result <- runPCA(PCAdata)
+
+
+
+
+
+
+# ==============================================================================
+# TASK 3.2 - Zebrafish (with/without filterByExpr)
+# ==============================================================================
+
+
+# 3.2.1 with filterByExpr ------------------------------------------------------
+
+
 
 deg_Z_with_filter <-run_and_save_DEG(Data_Z,
                                       "Z",
@@ -392,8 +796,15 @@ top10_Z_with_filter <- get_top10_degs(deg_Z_with_filter$DEG_result,
 
 
 
-# --- DEG Analysis for zebrafish -----------------------------------------------
-## -- filter by expression (without) -------------------------------------------
+
+
+
+
+
+
+
+
+# 3.2.2 without filterByExpr ---------------------------------------------------
 
 deg_Z_without_filter<-run_and_save_DEG(Data_Z,
                                        "Z",
@@ -404,3 +815,212 @@ deg_Z_without_filter<-run_and_save_DEG(Data_Z,
 # Get top 10 + summary
 top10_Z_without_filter <- get_top10_degs(deg_Z_without_filter$DEG_result, 
                                       use_filter = FALSE, "Z") 
+
+
+
+
+
+
+
+
+
+
+# 3.2.2 continuation .... Principal Component Analysis 
+
+
+# 3.2.2.1 degs | with filterByExpr | counts
+deg_Z <- deg_Z_with_filter$DEG_result
+  
+PCAdata <- process_PCAdata(data = deg_Z, tsv_data = counts)
+dim(PCAdata) # 407
+pca_result <- runPCA(PCAdata)
+
+# 3.2.2.2 degs | with filterByExpr | abundance
+PCAdata <- process_PCAdata(data = deg_Z, tsv_data = abundance)
+dim(PCAdata) # 407
+pca_result <- runPCA(PCAdata)
+
+
+# 3.2.2.3 degs | without filterByExpr | counts
+deg_Z <- deg_Z_without_filter$DEG_result
+
+PCAdata <- process_PCAdata(data = deg_Z, tsv_data = counts)
+dim(PCAdata) # 404
+pca_result <- runPCA(PCAdata)
+
+# 3.2.2.4 degs | without filterByExpr | abundance
+PCAdata <- process_PCAdata(data = deg_Z, tsv_data = abundance)
+dim(PCAdata) # 404
+pca_result <- runPCA(PCAdata)
+
+
+
+# 3.2.2.5 dt | with filterByExpr | counts
+dt_Z <- deg_Z_with_filter$decideTest_result
+
+PCAdata <- process_PCAdata(data = dt_Z, tsv_data = counts)
+dim(PCAdata) # 2473
+pca_result <- runPCA(PCAdata)
+
+# 3.2.2.6 dt | with filterByExpr | abundance
+PCAdata <- process_PCAdata(data = dt_Z, tsv_data = abundance)
+dim(PCAdata) # 2473
+pca_result <- runPCA(PCAdata)
+
+
+# 3.2.2.7 dt | without filterByExpr | counts
+dt_Z <- deg_Z_without_filter$decideTest_result
+
+PCAdata <- process_PCAdata(data = dt_Z, tsv_data = counts)
+dim(PCAdata) # 2974  
+pca_result <- runPCA(PCAdata)
+
+# 3.2.2.8 dt | without filterByExpr | abundance
+PCAdata <- process_PCAdata(data = dt_Z, tsv_data = abundance)
+dim(PCAdata) # 2974
+pca_result <- runPCA(PCAdata)
+
+
+
+
+# ==============================================================================
+# TASK ? - Swiss-prot vs. Zebrafish analysis
+# ==============================================================================
+
+SPvsZ <- common_deg_SP_Z(deg_SP, deg_Z)
+
+#save_to_excel(SPvsZ$common, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-common.xlsx")
+#save_to_excel(SPvsZ$unique_SP, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-unique-SP.xlsx")
+#save_to_excel(SPvsZ$unique_Z, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-unique-Z.xlsx")
+
+
+
+
+# Bar plots
+
+
+
+
+
+# ==============================================================================
+# TASK ? - Gene set enrichment analysis (GSEA)
+# ==============================================================================
+
+# Data needed: 
+#     Zebrafish (without filtering low gene counts)
+#     Important !! we want all (over-, under-, Nosig) so we need to use decideTest output
+
+
+
+# Running UniProt may take approximately 5min to 3 hours. 
+# Alternatively, you can skip this step and read the saved file instead.
+# ------------------------------------------------------------------------------
+# DataZ decide test without filterByExpr
+#decideTest_Z <- deg_Z_without_filter$decideTest_result
+#SpvsSu <- decideTest_Z[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
+#Data_SpvsSu <- get_uniprot_taxainfo(SpvsSu)
+#Su <- decideTest_Z[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
+#Data_Su <- get_uniprot_taxainfo(Su)
+#Sp <- decideTest_Z[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
+#Data_Sp <- get_uniprot_taxainfo(Sp)
+#uniprot_taxaobj <- c(Data_SpvsSu,Data_Su,Data_Sp)
+#View(uniprot_taxaobj)
+#save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+
+# DataZ decide test with filterByExpr
+decideTest_Z <- deg_Z_with_filter$decideTest_result
+SpvsSu <- decideTest_Z[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
+Data_SpvsSu <- get_uniprot_taxainfo(SpvsSu)
+Su <- decideTest_Z[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
+Data_Su <- get_uniprot_taxainfo(Su)
+Sp <- decideTest_Z[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
+Data_Sp <- get_uniprot_taxainfo(Sp)
+uniprot_taxaobj <- c(Data_SpvsSu,Data_Su,Data_Sp)
+View(uniprot_taxaobj)
+save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+
+
+
+# DataZ degs without filterByExpr
+#deg_Z <- deg_Z_without_filter$DEG_result
+#SpvsSu <- deg_Z[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
+#Data_SpvsSu <- get_uniprot_taxainfo(SpvsSu)
+#Su <- deg_Z[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
+#Data_Su <- get_uniprot_taxainfo(Su)
+#Sp <- deg_Z[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
+#Data_Sp <- get_uniprot_taxainfo(Sp)
+#uniprot_taxaobj <- c(Data_SpvsSu,Data_Su,Data_Sp)
+#View(uniprot_taxaobj)
+#save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-degZ.xlsx")
+
+# DataZ degs with filterByExpr
+#deg_Z <- deg_Z_with_filter$DEG_result
+#SpvsSu <- deg_Z[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
+#Data_SpvsSu <- get_uniprot_taxainfo(SpvsSu)
+#Su <- deg_Z[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
+#Data_Su <- get_uniprot_taxainfo(Su)
+#Sp <- deg_Z[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
+#Data_Sp <- get_uniprot_taxainfo(Sp)
+#uniprot_taxaobj <- c(Data_SpvsSu,Data_Su,Data_Sp)
+#View(uniprot_taxaobj)
+#save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-degZ.xlsx")
+# ------------------------------------------------------------------------------
+
+
+## Data (without filterByExpr):
+uniprot_taxaobj <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+
+# ----- to use multiGSEA package, we need a df with "Accession", "logFC", "PValue" columns -----
+GSEA_data <- process_GSEAdata(uniprot_taxaobj)
+#save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/without-filterByExpr/GSEA-data.xlsx")
+
+
+pathways <- perform_GSEA(GSEA_data)
+#save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/without-filterByExpr/pathways.xlsx")
+
+
+
+
+# 2974 each df -> output 0 enrich pathways (wtf is going on?!)
+GSEA_data <- process_GSEAdata(dt_Z)
+pathways <- perform_GSEA(GSEA_data)
+
+
+
+## Data (with filterByExpr):
+uniprot_taxaobj <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+View(uniprot_taxaobj)
+
+
+# ----- to use multiGSEA package, we need a df with "Accession", "logFC", "PValue" columns -----
+GSEA_data <-  process_GSEAdata(uniprot_taxaobj)
+save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/GSEA-data.xlsx")
+
+
+pathways <- perform_GSEA(GSEA_data)
+save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/with-filterByExpr/pathways.xlsx")
+
+
+
+
+
+
+
+
+
+
+
+# ==============================================================================
+# TASK n - STRING analysis
+# ==============================================================================
+
+# ----- to use STRING, we need the column "Gene.Names..primary." -----
+STRING_data <- process_STRINGdata(uniprot_taxaobj) 
+save_to_excel(STRING_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/without-filterByExpr/STRING-data.xlsx")
+
+# ----- to use STRING, we need the column "Gene.Names..primary." -----
+STRING_data <- STRINGdata_processing(uniprot_taxaobj) 
+save_to_excel(STRING_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/STRING-data.xlsx")
+
+
+
