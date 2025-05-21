@@ -20,22 +20,26 @@
 
 ## CRAN
 library(openxlsx)
-library(ggplot2)
 library(stringr)
 
 ## BiocManager
-library(tximport) 
+library(tximport)
+library(ggrepel)
+library(PCAtools) # require package: ggrepel
 library(limma)
 library(edgeR) # require package: limma
 library(UniprotR)
 library(multiGSEA)
 library(org.Dr.eg.db)
 
+
 ## tidyverse
 library(tidyr)
 library(dplyr)
 
-
+## Plot
+library(ggplot2)
+library(ggVennDiagram)
 
 
 # Constants and Global settings
@@ -46,6 +50,7 @@ sample_name <- c( "F14.Sp_TR","F15.Su_TR","F16.Su_RA",
                   "F21.Sp_TR","F22.Sp_RF","F27.Sp_RA",
                   "F28.Su_RF","F30.Su_TR","F35.Sp_RF",
                   "F35.Su_RF","F38.Su_RA","F4.Su_RA" ) 
+
 
 
 
@@ -546,6 +551,169 @@ identify_putative_plat_genes <- function(reference_data, plat_data){
 
 
 
+
+
+
+
+
+#' Title
+#' 
+#' @param 
+#' @param 
+#' @return 
+#' 
+#' @example 
+#' 
+analyse_overlap <- function(data1, data2, name1, name2, column_name = "GeneID"){
+  
+  #test
+  #data1 <- BpK_swissprot
+  #data2 <- BpK_zebrafish
+  #name1 <- "swissprot"
+  #name2 <- "zebrafish"
+  #column_name <- "GeneID"
+  
+  
+  dim(data1) # 37824
+  value1 <- unique(data1[[column_name]])
+  num1 <- length(value1) # 37824
+  num1
+  head(value1)
+  
+  dim(data2) # 17932
+  value2 <- unique(data2[[column_name]])
+  num2 <- length(value2) # 17932
+  num2
+  
+  # find common values (e.g., GenesID | GeneNameID)
+  common <- intersect(value1, value2)
+  num_common <- length(common)
+  num_common
+  
+  percentage_in_1 <- 100*(num_common/num1)
+  # i.e.,
+  # se de 17932 ----- 17855 em comum
+  # então   x   ----- 100
+  # x = Cerca de x% dos valores de data1 também estão em data2
+  
+  # Q: qual porcentagem dos valores de data2 aparecem em data1 ???
+  percentage_in_2 <- 100*(num_common/num2)
+  # R: cerca de x% dos valores data2 também estão em data1
+  
+  
+  
+  summary <- paste(
+    "--- SUMMARY ---",
+    paste("Overlap analysis:", name1, "vs", name2),
+    paste(name1, ":", num1),
+    paste(name2, ":", num2),
+    paste("Common:", num_common),
+    paste("% of", name1, "in", name2, ":", round(percentage_in_1,2)),
+    paste("% of", name2, "in", name1, ":", round(percentage_in_2,2)),
+    sep = "\n"
+  )
+  
+  # Print summary
+  cat(summary)
+  
+  
+  # Data frames for common and unique values
+  
+  # common
+  common_df <- merge(data1, data2, by = column_name, suffixes = c(".1", ".2"))
+  # unique to data1
+  unique_to_1 <- anti_join(data1, data2, by = column_name)
+  #  unique to data2
+  unique_to_2 <- anti_join(data2, data1, by = column_name)
+  #all rows from data2 whose value in column_name does not appear in data1
+  
+  return(list(common_values = common, common_df = common_df, 
+              unique_to_1= unique_to_1,
+              unique_to_2 = unique_to_2))
+  
+}
+
+
+
+
+
+#' Title
+#' 
+#' @param 
+#' @param 
+#' @return 
+#' 
+#' @example 
+#' 
+analyse_taxonomic_representation <- function(data){
+  
+  taxa_occurrance <- list()
+  
+  if(is.list(data)){
+    
+    for (df_name in names(data)) {
+      
+      df <- data[[df_name]]  
+      
+      occurrance_df <- df %>%
+        count(OS, name = "Count", sort = TRUE) %>%
+        as.data.frame()
+      
+      num_os <- nrow(occurrance_df)
+      
+     
+      top_taxa <- head(occurrance_df, 5)
+      
+      
+      total_entries <- nrow(df)
+      
+     
+      top_taxon <- top_taxa$OS[1]
+      top_taxon_count <- top_taxa$Count[1]
+      top_taxon_percentage <- round(100 * top_taxon_count / total_entries, 2)
+      
+      
+      summary <- paste(
+        "--- SUMMARY ---",
+        paste0("Total entries: ", total_entries),
+        paste0("Number of unique taxa (OS): ", num_os),
+        paste0("Most represented taxon: ", top_taxon, " (", top_taxon_count, " entries, ", top_taxon_percentage, "%)"),
+        "Top 5 taxa by representation:",
+        paste0(
+          apply(top_taxa, 1, function(row) {
+            sprintf("  - %s: %s entries (%.2f%%)", 
+                    row["OS"], 
+                    row["Count"], 
+                    100 * as.numeric(row["Count"]) / total_entries)
+          }),
+          collapse = "\n"
+        ),
+        sep = "\n"
+      )
+      
+      cat(summary, "\n\n")
+      
+      taxa_occurrance[[df_name]] <- occurrance_df
+    }
+  }
+  
+  return(taxa_occurrance)
+}
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
 #' Title
 #' 
 #' 
@@ -1018,6 +1186,9 @@ get_GeneNameID_contrasts <- function(deg_list) {
 #' 
 #' @return
 #' 
+#' @note Pequeno ERRO!! not_in_common não se percebe bem, deveria mudar para algo
+#' que não me esqueça o que é suposto ser...tipo "unique_to"
+#' 
 #' @example 
 #' 
 common_deg_SP_Z <- function(deg_SP, deg_Z) {
@@ -1171,8 +1342,8 @@ get_uniprot_taxainfo <- function(deg_list, specific_accession = NULL) {
 #'
 process_STRINGdata <- function(uniprot_taxaobj){
   
-  preprocessing <- function(uniprot_taxaobj){
-    uniprot_taxaobj %>%
+  preprocessing <- function(df){
+    df %>%
       select("Gene.Names..primary.", "logFC")%>%
       arrange(logFC)}
   
@@ -1211,7 +1382,13 @@ process_GSEAdata <- function(uniprot_taxaobj){
 
 
 
-
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 process_EnrichmentScores <- function(enrichment_scores){
   
   # convert to a data frame
@@ -1337,6 +1514,438 @@ perform_GSEA <- function(GSEA_data){
   
   return(list(ES_raw_result = raw_ES, ES_processed_result= processed_ES))
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==============================================================================
+# Visualizations 
+# ==============================================================================
+
+
+#library(showtext)
+#list.files("C:/Windows/Fonts", pattern = "arial", ignore.case = TRUE)
+#font_add("Arial",
+#         regular = "C:/Windows/Fonts/arial.ttf",
+#         bold = "C:/Windows/Fonts/arialbd.ttf",
+#         italic = "C:/Windows/Fonts/ariali.ttf",
+#         bolditalic = "C:/Windows/Fonts/arialbi.ttf")
+
+#showtext_auto()
+
+
+
+
+
+#https://r-graph-gallery.com/14-venn-diagramm
+#https://r-charts.com/part-whole/ggvenndiagram/ 
+#https://ggplot2-book.org/layers.html
+#https://venn.bio-spring.top/using-ggvenndiagram
+#https://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/#figure-sizing
+?ggVennDiagram
+# windowsFonts()
+library(extrafont)
+font_import(pattern = "arial", prompt = FALSE)
+#https://showteeth.github.io/ggpie/articles/ggpie_manual.html
+
+
+
+
+
+
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+plot_vennDiagram <- function(vennData, save_plot = FALSE, output_file = NULL){
+  
+    
+  venn_plot <- ggVennDiagram(
+    vennData,                           # Data (list(set1,set2,set3))
+    label_alpha = 0,                    # Remove the background from region labels
+    edge_size = 0.8,                    # Set thickness of the set borders
+    edge_lty = "solid",                 # Set -> set edges | Options: "dashed", "solid
+    
+    set_color = c("#0072b2", "#e69f00", "#56b4e9"), # Set the color of set borders and category names
+    set_size = 6,                       # Set font size for category names
+    
+    
+    label = "both",                     # Options: "both", , "count", "percent", "none"
+    label_percent_digit = 1,            # Set decimal digits for percent labels
+    # label_color = "firebrick",        # Set color for region label text
+    label_size =  4.5                   # Set font size for region labels
+  ) +
+    
+    # Expand x-axis to allow space for long set labels
+    scale_x_continuous(
+      expand = expansion(mult = .2)     # Add space (20%) to both sides of the x-axis
+    ) +
+    
+    theme(
+      text = element_text(family = "Arial", size = 6),
+      legend.position = "none"
+    )
+  
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    print(venn_plot)
+    ggsave(output_file, plot = venn_plot, width = 8.9, height = 8.9, units = "cm")
+    
+  } else {
+    print(venn_plot)
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+process_barplot_data <- function(data, blast_name, metric) {
+  
+  data <- data %>%
+    select(pident, evalue) %>%
+    mutate(blast = blast_name)
+  
+  
+  if (metric == "pident") {
+    data <- data %>%
+      mutate(category = evaluate_sequence_quality(pident, "pident"))
+  } else if (metric == "evalue") {
+    data <- data %>%
+      mutate(category = evaluate_sequence_quality(evalue, "evalue"))
+  } else {
+    stop("Use 'pident' or 'evalue'.")
+  }
+  
+  return(data)
+}
+
+
+
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+prepare_summary <- function(data_list){
+  
+  #test
+  #data_list <- list("Swiss-prot" = barData_sp,
+  #                    "Zebra-fish" = barData_z,
+  #                    "Platyhelminth" = barData_p)
+  
+  all_data <- bind_rows(data_list)
+  #View(all_data)
+  
+  print(table(all_data$category))
+  
+  summary_table <- all_data %>%
+    group_by(blast, category) %>%
+    summarise(count = n(),
+              .groups = "drop") %>%
+    group_by(blast) %>%
+    mutate(percentage = count/sum(count)*100)
+  
+  #View(summary_table)
+  
+  return(summary_table)
+  
+}
+
+
+
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+plot_barplot <- function(barData, save_plot = TRUE, output_file){
+  
+  barData$category <- factor(barData$category, levels = c("Bad", "Good", "Excellent"))
+  
+  bar_plot <- ggplot(
+    barData,
+    aes(x = category, y = percentage, fill = blast)
+  ) +
+    geom_bar(
+      stat = "identity",
+      position = position_dodge(width = 0.8),
+      width = 0.7
+    ) +
+    geom_text(
+      aes(label = sprintf("%.1f%%", percentage)),
+      position = position_dodge(width = 0.8),
+      vjust = -0.8,
+      size = 2.0,
+      family = "Arial"
+      ) +
+    labs(
+      x = NULL, y = NULL,
+      fill = "Database"
+    ) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      expand = expansion(mult = c(0, 0.15))
+    ) +
+    scale_fill_manual(
+      values = c("platyhelminthes" = "#0072b2",
+                 "swissprot" = "#e69f00",
+                 "zebrafish" = "#56b4e9")
+    ) +
+    theme_minimal(base_family = "Arial") +
+    theme(
+      text = element_text(size = 9),
+      axis.text = element_text(size = 8),
+      legend.title = element_text(size = 7, face = "bold"),
+      legend.text = element_text(size = 6),
+      legend.position = "bottom",
+      legend.background = element_rect(fill = "white", color = "black"),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.margin = margin(20,20,20,20)
+    )
+    
+  
+  print(bar_plot)
+  
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    ggsave(
+      filename = output_file,
+      plot = bar_plot,
+      width = 9,
+      height = 9,
+      units = "cm",
+      dpi = 600
+    )
+  }
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+get_common_GeneNameID <- function(x, y){
+  
+  matched_GeneNameID <- merge(x, y, by = "GeneNameID", suffixes = c(".x", ".y")) 
+  
+  return(matched_GeneNameID)
+}
+
+
+
+get_unique_GeneID <- function(common_GeneNameID){
+  
+  GeneID <- unique(c(common_GeneNameID$GeneID.x,common_GeneNameID$GeneID.y))
+  
+  return(GeneID)
+  
+}
+
+
+
+
+process_PCAdata <- function(data = NULL,
+                            df1 = NULL,
+                            df2 = NULL,
+                            GeneID_vector = NULL,
+                            tsv_data){
+  
+  
+  
+  # Case 1: Use all data 
+  # e.g.,
+  #   - tsv$abundance
+  #   - tsv$count
+  if (is.null(data) && is.null(df1) && is.null(df2) && is.null(GeneID_vector)){
+    return(tsv_data)
+  }
+  
+  
+  
+  
+  
+  # Case 2: Subset by GeneID from data frame
+  # e.g.,
+  #   - differentially expressed genes (under-, over- , No sig)
+  #   - differentially expressed genes (under-, over-)
+  if (!is.null(data) && is.list(data)) {
+    
+    ids_list <- lapply(data, function(df){
+      if(nrow(df)>0) df$genes
+    })
+    
+    ids <- unique(unlist(ids_list))
+    length(ids)
+    PCAdata <- tsv_data[rownames(tsv_data) %in% ids, ]
+    
+    return(PCAdata)
+  }
+  
+  
+  
+  # Case 3: Subset by common GeneNameID from two data frames
+  # e.g.,
+  #   - fish genes
+  if(!is.null(df1) && !is.null(df2)){
+    
+    common <- merge(df1, df2, by = "GeneNameID", suffixes = c(".x", ".y"))
+    ids <- unique(c(common$GeneID.x, common$GeneID.y))
+    PCAdata <- tsv_data[rownames(tsv_data) %in% ids, ]
+    
+    return(PCAdata)
+  }
+  
+  
+  
+  
+  
+  # Case 4: Subset by provided GeneID vector
+  #   - putative plat genes
+  if(!is.null(GeneID_vector)){
+    
+    PCAdata <- tsv_data[rownames(tsv_data) %in% GeneID_vector, ]
+    return(PCAdata)
+  }
+  
+  
+  return(NULL)
+  
+}
+  
+  
+  
+
+
+runPCA <- function(PCAdata, add_pseudocount=TRUE,removeVar = NULL){
+  
+  # inspired by : PraticalTutorial04
+  
+  # pseudocount : we add 1 TPM to each gene to avoid infinite values after log
+  # removeVar : Remove this % of variables based on low variance
+  #
+  
+  # Prepare gene expression matrix
+  ## Log transform the data
+  if (add_pseudocount){
+    logTPMs <- log2(PCAdata + 1)
+  } else {
+    logTPMs <- log2(PCAdata)
+  }
+  
+  
+  ## Remove duplicated genes
+  uniqueGenes <- unique(rownames(logTPMs))
+  logTPMs <- logTPMs[uniqueGenes, ]
+  
+  
+  
+  # Prepare metadata with sample type
+  sampleTypes <- gsub("^[^\\.]+\\.", # pattern
+                      "", # replacement
+                      colnames(logTPMs) # x
+  )
+  
+  metaData <- data.frame(sampleTypes)
+  rownames(metaData) <- colnames(logTPMs)
+  
+  
+  # Run pca 
+  pca_result <- pca(mat = logTPMs,
+                    metadata = metaData,
+                    removeVar = removeVar) 
+  
+  
+  return(list(pca_result = pca_result, logTPMs = logTPMs, metadata = metaData))
+}
+
+
+
+process_PCAloadings <- function(PCAloadings){
+  
+}
+
+
+
+
+
+
+
+
 
 
 
