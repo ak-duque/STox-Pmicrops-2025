@@ -1471,8 +1471,6 @@ perform_GSEA <- function(GSEA_data){
       layers <- names(omics_data)
       print(layers)
       
-      data("transcriptome") # df dim - 15174 4(Symbol|logFC|pValue|adj.pValue)
-      
       # ranks
       omics_data$transcriptome <- rankFeatures(
         contrast$logFC,
@@ -1536,35 +1534,48 @@ perform_GSEA <- function(GSEA_data){
 
 
 
+
+
+
+
 # ==============================================================================
 # Visualizations 
 # ==============================================================================
-
-
-#library(showtext)
-#list.files("C:/Windows/Fonts", pattern = "arial", ignore.case = TRUE)
-#font_add("Arial",
-#         regular = "C:/Windows/Fonts/arial.ttf",
-#         bold = "C:/Windows/Fonts/arialbd.ttf",
-#         italic = "C:/Windows/Fonts/ariali.ttf",
-#         bolditalic = "C:/Windows/Fonts/arialbi.ttf")
-
-#showtext_auto()
-
-
-
-
-
 #https://r-graph-gallery.com/14-venn-diagramm
 #https://r-charts.com/part-whole/ggvenndiagram/ 
 #https://ggplot2-book.org/layers.html
 #https://venn.bio-spring.top/using-ggvenndiagram
 #https://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/#figure-sizing
 ?ggVennDiagram
-# windowsFonts()
-library(extrafont)
-font_import(pattern = "arial", prompt = FALSE)
 #https://showteeth.github.io/ggpie/articles/ggpie_manual.html
+#https://biostatsquid.com/volcano-plots-r-tutorial/
+
+
+
+
+library(showtext)
+list.files("C:/Windows/Fonts", pattern = "arial", ignore.case = TRUE)
+font_add("Arial",
+         regular = "C:/Windows/Fonts/arial.ttf",
+         bold = "C:/Windows/Fonts/arialbd.ttf",
+         italic = "C:/Windows/Fonts/ariali.ttf",
+         bolditalic = "C:/Windows/Fonts/arialbi.ttf")
+
+showtext_auto()
+
+
+
+
+
+
+my_col <- c("Sp_RA" = "#E41A1C", "Sp_TR" = "#377EB8", "Sp_RF" = "#4DAF4A",
+            "Su_RA" = "#984EA3", "Su_TR" = "#FF7F00", "Su_RF" = "#A65628")
+
+
+
+
+
+
 
 
 
@@ -1792,13 +1803,6 @@ plot_barplot <- function(barData, save_plot = TRUE, output_file){
 
 
 
-
-
-
-
-
-
-
 get_common_GeneNameID <- function(x, y){
   
   matched_GeneNameID <- merge(x, y, by = "GeneNameID", suffixes = c(".x", ".y")) 
@@ -1934,10 +1938,332 @@ runPCA <- function(PCAdata, add_pseudocount=TRUE,removeVar = NULL){
 }
 
 
-
-process_PCAloadings <- function(PCAloadings){
+plot_pca <- function(PCAdata, save_plot = TRUE, output_file){
+  
+  
+  #test
+  PCAdata <- pca_result$pca_result
+  
+  #View(PCAdata)
+  
+  # Prepare data to plot
+  rotated_data <- as.data.frame(PCAdata$rotated)
+  #View(rotated_data)
+  
+  rotated_data$sampleTypes <- PCAdata$metadata$sampleTypes
+  #View(rotated_data)
+  
+  var_pc1 <- round(PCAdata$variance[1], 2)
+  #View(var_pc1)
+  var_pc2 <- round(PCAdata$variance[2], 2)
+  # -------------------------------------------------------
+  
+  
+  # Plot
+  pca_plot <- ggplot(
+    rotated_data,
+    aes(x = PC1, y = PC2)
+  ) +
+    ggforce::geom_mark_ellipse(
+      aes(fill = sampleTypes, color = sampleTypes),
+      alpha = 0.2,
+      size = 1
+    ) +
+    geom_point(
+      aes(fill = sampleTypes),
+      size = 4,
+      shape = 21,
+      stroke = 1.2,
+      color = "black"
+    ) +
+    scale_fill_manual(
+      values = my_col
+    ) +
+    scale_color_manual(
+      values = my_col
+    ) +
+    labs(
+      x = paste0("PC1 (", var_pc1, "% variation)"),
+      y = paste0("PC2 (", var_pc2, "% variation)")
+    ) +
+    theme_bw(
+      base_family = "Arial",
+      base_size = 14
+    ) +
+    theme(
+      text = element_text(family = "Arial", size = 14),
+      axis.title = element_text(size = 16, face = "bold"),
+      axis.text = element_text(size = 14),
+      legend.position = "right",
+      legend.spacing.y = unit(0.8, "cm"),
+      legend.title = element_text(size = 14, face = "bold"),
+      legend.text = element_text(size = 12),
+      panel.border = element_rect(linewidth = 1.2),
+      panel.grid.major = element_line(color = "gray80", linewidth = 0.5),
+      panel.grid.minor = element_line(color = "gray90", linewidth = 0.3, linetype = "dashed")
+      
+    ) + 
+    guides(
+      fill = guide_legend(nrow = 2, byrow = TRUE),
+      color = guide_legend(nrow = 2, byrow = TRUE)
+    )
+  
+  
+  
+  print(pca_plot)
+  
+  
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    ggsave(
+      filename = output_file,
+      plot = pca_plot,
+      width = 20,
+      height = 20,
+      units = "cm",
+      dpi = 600
+    )
+  }
+  
+  
   
 }
+
+
+
+
+
+# Tue May 27 10:36:48 2025 ------------------------------
+# Fail: loading plot is a mess, is not entirely working !! 
+
+process_PCAloadings <- function(pca_result, reference_data){
+  
+  PCAloadings <- pca_result$pca_result$loadings
+  PCAloadings$GeneID <- rownames(PCAloadings)
+  #View(PCAloadings)
+  #dim(PCAloadings) # 2975
+  
+  #reference_data <- Data_SP
+  GeneNameID <- reference_data %>% 
+    select(GeneNameID, GeneID) 
+  #View(GeneNameID)
+  #dim(GeneNameID) # 15947
+  
+  # Note: I coud also use dyplr::left.join()
+  loadings <- merge(GeneNameID, PCAloadings, by = "GeneID", all.y = TRUE)
+  #View(loadings) 
+  #dim(loadings) # 2975
+  
+  #print(sum(is.na(loadings$GeneNameID))) # 249
+  
+  # Forma 1:
+  # trocar NA pelo GeneID
+  loadings$GeneNameID[is.na(loadings$GeneNameID)] <- loadings$GeneID[is.na(loadings$GeneNameID)]
+  
+  # Forma 2:
+  #loadings <- loadings %>%
+  #  mutate(
+  #    GeneNameID = if_else(is.na(GeneNameID), GeneID, GeneNameID))
+  
+  #View(loadings) 
+  #dim(loadings) # 2975
+  
+  #print(sum(is.na(loadings$GeneNameID)))
+  
+  rownames(loadings) <- loadings$GeneNameID
+  #View(loadings) 
+  
+  processed_PCAloadings <- loadings %>%
+    select(-c(GeneNameID, GeneID))
+  
+  
+  pca_result$pca_result$loadings <- processed_PCAloadings
+  
+    
+  return(pca_result)
+  
+}
+
+plot_pcaloadings <- function(PCAdata, save_plot = FAlSE, output_file){
+  
+  
+  
+  
+  loadings_plot <- plotloadings(pcaobj = pca_res$pca_result,
+                                components = c("PC1","PC2","PC3"),
+                                rangeRetain = 0.01, #default
+                                shape = 21,
+                                shapeSizeRange = c(10,10),
+                                legendPosition = "top",
+                                legendLabSize = 15,
+                                legendIconSize = 3,
+                                labSize = 5,
+                                typeConnectors = "open",
+                                endsConnectors = "last")
+  
+  print(loadings_plot)
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    ggsave(
+      filename = output_file,
+      plot = loadings_plot,
+      width = 20,
+      height = 20,
+      units = "cm",
+      dpi = 600
+    )
+  }
+  
+  
+  
+}
+# -------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Note.: I need to confirm if the top5,  is the logFC, or the -log10 P-Value....
+# I used the logFC instead of the -log10 P-Value, maybe is not the correct way
+# I also, according to the thesis examples, need to change -log10 P-value to -log10 FDR 
+
+
+process_volcano_data <- function(dt){
+  
+  
+  dt <- deg_SP_with_filter$decideTest_result$Sp.RAvsTR
+  
+  volcano_data <- dt %>%
+    mutate(contrast = .[[6]]) %>%  
+    select(GeneNameID, logFC, PValue, contrast) %>%
+    mutate(
+      logPValue = -log10(PValue),
+      Expression = case_when(
+        contrast == 1 & logFC > 0 ~ "Overexpressed",
+        contrast == -1 & logFC < 0 ~ "Underexpressed",
+        TRUE ~ "Not Significant"  
+      )
+    )
+  
+  
+  # Fail: acho que há qualquer erro aqui, na seleção dos top...
+  top5_over <- volcano_data %>%
+    filter(Expression == "Overexpressed") %>%
+    arrange(desc(PValue)) %>%
+    slice_head(n = 5)
+  
+  top5_under <- volcano_data %>%
+    filter(Expression == "Underexpressed") %>%
+    arrange(PValue) %>%
+    slice_head(n = 5)
+  
+  highlighted <- bind_rows(top5_under, top5_over)
+  
+  return(list(highlighted = highlighted, volcano_data = volcano_data))
+}
+
+
+plot_volcanoPlot <- function(volcano_data, highlighted, save_plot = TRUE, output_file = NULL){
+  # volcano_data: Full volcano data
+  # highlighted: Subset for labeling
+  
+  volcano_plot <- ggplot(
+    volcano_data, 
+    aes(x = logFC, y = logPValue, color = Expression)
+  ) +
+    geom_point(
+      alpha = 0.8, 
+      size = 4.0
+    ) +
+    geom_hline(
+      yintercept = -log10(0.05), 
+      linetype = "dashed"
+    ) +
+    geom_vline(
+      xintercept = c(-1, 1), 
+      linetype = "dashed"
+    ) +
+    scale_color_manual(
+      values = c("Overexpressed" = "tomato",
+                 "Underexpressed" = "steelblue",
+                 "Not Significant" = "gray")
+    ) +
+    labs(
+      x = bquote(Log[2] ~ "fold change"),
+      y = bquote(-Log[10] ~ "P-Value"),
+      color = "Gene Expression"
+    ) +
+    theme_bw(base_size = 14) +
+    theme(
+      text = element_text(family = "Arial"),
+      legend.position = "right",
+      legend.title = element_text(size = 14, face = "bold"),
+      legend.text = element_text(size = 12),
+      panel.border = element_blank()
+    ) +
+    geom_label_repel(
+      data = highlighted, 
+      aes(label = GeneNameID),  
+      size = 6.0, 
+      max.overlaps = 100,
+      fontface = "bold", 
+      color = "black",
+      box.padding = 1, 
+      point.padding = 0.3,
+      segment.color = "black", 
+      segment.size = 1.0
+    )
+  
+  print(volcano_plot)
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    ggsave(
+      filename = output_file,
+      plot = volcano_plot,
+      width = 20,
+      height = 20,
+      units = "cm",
+      dpi = 600
+    )
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
