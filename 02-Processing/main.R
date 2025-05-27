@@ -538,7 +538,6 @@ platGeneID <- unique(c(platGenes$GeneID.Ref, platGenes$GeneID.Plat))
 #       - all swiss-prot (2)
 # ------------------------------------------------------------------------------
 
-# FALTA: PCA plot !!!!!!!!!!!!!!!
 
 # Data needed:
 load("03-Output/01-DEG-Analysis/analysis-ready-data/abundance_tsv")
@@ -559,33 +558,58 @@ abundance <- abundance_tsv$abundance
 PCAdata <- process_PCAdata(tsv_data = counts)
 dim(PCAdata) # 266105
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-all-count.pdf")
+
+# it's not working correctly ......... for all the cases....
+#pca_res <- process_PCAloadings(pca_result, Data_SP)
+#plot_pcaloadings(pca_res, save_plot = FALSE)
+
+
+
+
+
+
 
 # 2.3.2 All abundance
 PCAdata <- process_PCAdata(tsv_data = abundance)
 dim(PCAdata) # 266105
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-all-abundance.pdf")
 
 
 # 2.3.3 Putative plat genes | counts
 PCAdata <- process_PCAdata(GeneID_vector = platGeneID, tsv_data = counts)
 dim(PCAdata) # 10
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-putative-plat-genes-count.pdf")
+
 
 # 2.3.4 Putative plat genes | abundance
 PCAdata <- process_PCAdata(GeneID_vector = platGeneID, tsv_data = abundance)
 dim(PCAdata) # 10
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-putative-plat-genes-abundance.pdf")
+
 
 
 # 2.3.5 Fish genes | counts
 PCAdata <- process_PCAdata(df1 = fish_SP, df2 = Data_Z, tsv_data = counts)
 dim(PCAdata) # 2254
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-fish-genes-count.pdf")
+
 
 # 2.3.6 Fish genes | abundance
 PCAdata <- process_PCAdata(df1 = fish_SP, df2 = Data_Z, tsv_data = abundance)
 dim(PCAdata) # 2254
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-fish-genes-count.pdf")
 
 
 # to be continued .....
@@ -644,10 +668,6 @@ abundance <- abundance_tsv$abundance
 # ==============================================================================
 # TASK 3.1 - swiss-prot (with/without filterByExpr)
 # ==============================================================================
-
-
-# FALTA: Volcano Plot and Heatmap !!!!!!!!!!!!!!!
-
 
 
 # 3.1.1 with filterByExpr ----
@@ -723,11 +743,15 @@ deg_SP <- deg_SP_with_filter$DEG_result
 PCAdata <- process_PCAdata(data = deg_SP, tsv_data = counts)
 dim(PCAdata) # 1625
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-degs-with-filterByExpr-count-SP.pdf")
 
 # 3.1.2.2 degs | with filterByExpr | abundance
 PCAdata <- process_PCAdata(data = deg_SP, tsv_data = abundance)
 dim(PCAdata) # 1625
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-degs-with-filterByExpr-abundance-SP.pdf")
 
 
 # 3.1.2.3 degs | without filterByExpr | counts
@@ -736,11 +760,15 @@ deg_SP <- deg_SP_without_filter$DEG_result
 PCAdata <- process_PCAdata(data = deg_SP, tsv_data = counts)
 dim(PCAdata) # 1298
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-degs-without-filterByExpr-count-SP.pdf")
 
 # 3.1.2.4 degs | without filterByExpr | abundance
 PCAdata <- process_PCAdata(data = deg_SP, tsv_data = abundance)
 dim(PCAdata) # 1298
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-degs-without-filterByExpr-abundance-SP.pdf")
 
 
 
@@ -750,11 +778,15 @@ dt_SP <- deg_SP_with_filter$decideTest_result
 PCAdata <- process_PCAdata(data = dt_SP, tsv_data = counts)
 dim(PCAdata) # 9645
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-dt-with-filterByExpr-count-SP.pdf")
 
 # 3.1.2.6 dt | with filterByExpr | abundance
 PCAdata <- process_PCAdata(data = dt_SP, tsv_data = abundance)
 dim(PCAdata) # 9645
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-dt-with-filterByExpr-abundance-SP.pdf")
 
 
 # 3.1.2.7 dt | without filterByExpr | counts
@@ -763,13 +795,119 @@ dt_SP <- deg_SP_without_filter$decideTest_result
 PCAdata <- process_PCAdata(data = dt_SP, tsv_data = counts)
 dim(PCAdata) # 15937
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-dt-without-filterByExpr-count-SP.pdf")
+
+
 
 # 3.1.2.8 dt | without filterByExpr | abundance
 PCAdata <- process_PCAdata(data = dt_SP, tsv_data = abundance)
 dim(PCAdata) # 15937
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-dt-without-filterByExpr-abundance-SP.pdf")
 
 
+
+
+# 3.1.3 volcano plots 
+
+# 3.1.3.1 with filterByExpr
+
+View(deg_SP_with_filter$DEG_result)
+names(deg_SP_with_filter$decideTest_result)
+
+dt_SP <- deg_SP_with_filter$decideTest_result
+
+res <- process_volcano_data(dt_SP[["Sp.RAvsTR"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsTR-with-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Sp.RAvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsRF-with-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Sp.TRvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-TRvsRF-with-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Su.RAvsTR"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsTR-with-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Su.RAvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsRF-with-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Su.TRvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-TRvsRF-with-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["RA.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaAveiro-SpvsSu-with-filterByExpr-SP.pdf")
+
+#res <- process_volcano_data(dt_SP[["TR.SpvsSu"]])
+#plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE)
+
+res <- process_volcano_data(dt_SP[["RF.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaFormosa-SpvsSu-with-filterByExpr-SP.pdf")
+
+
+# 3.1.3.2 without filterByExpr
+
+View(deg_SP_without_filter$DEG_result)
+names(deg_SP_without_filter$decideTest_result)
+
+dt_SP <- deg_SP_without_filter$decideTest_result
+
+res <- process_volcano_data(dt_SP[["Sp.RAvsTR"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsTR-without-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Sp.RAvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsRF-without-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Sp.TRvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-TRvsRF-without-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Su.RAvsTR"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsTR-without-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Su.RAvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsRF-without-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["Su.TRvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-TRvsRF-without-filterByExpr-SP.pdf")
+
+res <- process_volcano_data(dt_SP[["RA.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaAveiro-SpvsSu-without-filterByExpr-SP.pdf")
+
+#res <- process_volcano_data(dt_SP[["TR.SpvsSu"]])
+#plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE)
+
+res <- process_volcano_data(dt_SP[["RF.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaFormosa-SpvsSu-without-filterByExpr-SP.pdf")
+
+
+
+
+
+# TO BE DONE!!!
+
+# 3.1.4 heatmap plot
+
+# 3.1.4.1 with filterByExpr
+
+# 3.1.4.2 without filterByExpr
 
 
 
@@ -793,11 +931,6 @@ deg_Z_with_filter <-run_and_save_DEG(Data_Z,
 # Get top 10 + summary
 top10_Z_with_filter <- get_top10_degs(deg_Z_with_filter$DEG_result, 
                                        use_filter = TRUE, "Z") 
-
-
-
-
-
 
 
 
@@ -834,11 +967,15 @@ deg_Z <- deg_Z_with_filter$DEG_result
 PCAdata <- process_PCAdata(data = deg_Z, tsv_data = counts)
 dim(PCAdata) # 407
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-degs-with-filterByExpr-count-Z.pdf")
 
 # 3.2.2.2 degs | with filterByExpr | abundance
 PCAdata <- process_PCAdata(data = deg_Z, tsv_data = abundance)
 dim(PCAdata) # 407
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-degs-with-filterByExpr-abundance-Z.pdf")
 
 
 # 3.2.2.3 degs | without filterByExpr | counts
@@ -847,11 +984,17 @@ deg_Z <- deg_Z_without_filter$DEG_result
 PCAdata <- process_PCAdata(data = deg_Z, tsv_data = counts)
 dim(PCAdata) # 404
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-degs-without-filterByExpr-count-Z.pdf")
+
 
 # 3.2.2.4 degs | without filterByExpr | abundance
 PCAdata <- process_PCAdata(data = deg_Z, tsv_data = abundance)
 dim(PCAdata) # 404
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-degs-without-filterByExpr-abundance-Z.pdf")
+
 
 
 
@@ -861,11 +1004,16 @@ dt_Z <- deg_Z_with_filter$decideTest_result
 PCAdata <- process_PCAdata(data = dt_Z, tsv_data = counts)
 dim(PCAdata) # 2473
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-dt-with-filterByExpr-count-Z.pdf")
+
 
 # 3.2.2.6 dt | with filterByExpr | abundance
 PCAdata <- process_PCAdata(data = dt_Z, tsv_data = abundance)
 dim(PCAdata) # 2473
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-dt-with-filterByExpr-abundace-Z.pdf")
 
 
 # 3.2.2.7 dt | without filterByExpr | counts
@@ -874,11 +1022,110 @@ dt_Z <- deg_Z_without_filter$decideTest_result
 PCAdata <- process_PCAdata(data = dt_Z, tsv_data = counts)
 dim(PCAdata) # 2974  
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-dt-without-filterByExpr-count-Z.pdf")
+
 
 # 3.2.2.8 dt | without filterByExpr | abundance
 PCAdata <- process_PCAdata(data = dt_Z, tsv_data = abundance)
 dim(PCAdata) # 2974
 pca_result <- runPCA(PCAdata)
+plot_pca(pca_result, save_plot = TRUE, 
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-dt-without-filterByExpr-abundance-Z.pdf")
+
+
+
+
+
+
+
+
+# 3.1.3 volcano plots 
+
+# 3.1.3.1 with filterByExpr
+
+View(deg_Z_with_filter$DEG_result)
+names(deg_Z_with_filter$decideTest_result)
+
+dt_Z <- deg_Z_with_filter$decideTest_result
+
+res <- process_volcano_data(dt_Z[["Sp.RAvsTR"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsTR-with-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Sp.RAvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsRF-with-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Sp.TRvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-TRvsRF-with-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Su.RAvsTR"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsTR-with-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Su.RAvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsRF-with-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Su.TRvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-TRvsRF-with-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["RA.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaAveiro-SpvsSu-with-filterByExpr-Z.pdf")
+
+#res <- process_volcano_data(dt_Z[["TR.SpvsSu"]])
+#plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE)
+
+res <- process_volcano_data(dt_Z[["RF.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaFormosa-SpvsSu-with-filterByExpr-Z.pdf")
+
+
+# 3.1.3.2 without filterByExpr
+
+View(deg_Z_without_filter$DEG_result)
+names(deg_Z_without_filter$decideTest_result)
+
+dt_Z <- deg_Z_without_filter$decideTest_result
+
+res <- process_volcano_data(dt_Z[["Sp.RAvsTR"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsTR-without-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Sp.RAvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsRF-without-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Sp.TRvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-TRvsRF-without-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Su.RAvsTR"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsTR-without-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Su.RAvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsRF-without-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["Su.TRvsRF"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-TRvsRF-without-filterByExpr-Z.pdf")
+
+res <- process_volcano_data(dt_Z[["RA.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaAveiro-SpvsSu-without-filterByExpr-Z.pdf")
+
+#res <- process_volcano_data(dt_Z[["TR.SpvsSu"]])
+#plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE)
+
+res <- process_volcano_data(dt_Z[["RF.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaFormosa-SpvsSu-without-filterByExpr-Z.pdf")
 
 
 
@@ -895,8 +1142,36 @@ SPvsZ <- common_deg_SP_Z(deg_SP, deg_Z)
 
 
 
+SPvsZ$common$Sp.RAvsTR
+SPvsZ$common$Sp.RAvsRF
+SPvsZ$common$Sp.TRvsRF
+SPvsZ$common$Su.RAvsTR
+SPvsZ$common$Su.RAvsRF
+SPvsZ$common$Su.TRvsRF
+SPvsZ$common$RF.SpvsSu
+SPvsZ$common$RA.SpvsSu
 
-# Bar plots
+SPvsZ$unique_SP$Sp.RAvsTR
+SPvsZ$unique_SP$Sp.RAvsRF
+SPvsZ$unique_SP$Sp.TRvsRF
+SPvsZ$unique_SP$Su.RAvsTR
+SPvsZ$unique_SP$Su.RAvsRF
+SPvsZ$unique_SP$Su.TRvsRF
+SPvsZ$unique_SP$RF.SpvsSu
+SPvsZ$unique_SP$RA.SpvsSu
+
+SPvsZ$unique_Z$Sp.RAvsTR
+SPvsZ$unique_Z$Sp.RAvsRF
+SPvsZ$unique_Z$Sp.TRvsRF
+SPvsZ$unique_Z$Su.RAvsTR
+SPvsZ$unique_Z$Su.RAvsRF
+SPvsZ$unique_Z$Su.TRvsRF
+SPvsZ$unique_Z$RF.SpvsSu
+SPvsZ$unique_Z$RA.SpvsSu
+
+
+
+
 
 
 
@@ -906,13 +1181,109 @@ SPvsZ <- common_deg_SP_Z(deg_SP, deg_Z)
 # TASK ? - Gene set enrichment analysis (GSEA)
 # ==============================================================================
 
-# Data needed: 
-#     Zebrafish (without filtering low gene counts)
-#     Important !! we want all (over-, under-, Nosig) so we need to use decideTest output
+# steps:
+
+# tips: 
+# Zebra fish (without filtering low gene counts)
+# Important !! we want all (over-, under-, Nosig) so we need to use decideTest output
 
 
 
-# Running UniProt may take approximately 5min to 3 hours. 
+# pro tip:
+# 
+
+
+# plot:
+
+
+# problems:
+
+
+# references:
+#
+# ==============================================================================
+
+
+## Data (without filterByExpr):
+uniprot_taxaobj <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+
+# ----- to use multiGSEA package, we need a df with "Accession", "logFC", "PValue" columns -----
+GSEA_data <- process_GSEAdata(uniprot_taxaobj)
+#save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/without-filterByExpr/GSEA-data.xlsx")
+
+
+pathways <- perform_GSEA(GSEA_data)
+#save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/without-filterByExpr/pathways.xlsx")
+
+
+
+
+# 2974 each df -> output 0 enrich pathways (wtf is going on?!)
+GSEA_data <- process_GSEAdata(dt_Z)
+pathways <- perform_GSEA(GSEA_data)
+
+
+
+## Data (with filterByExpr):
+uniprot_taxaobj <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+View(uniprot_taxaobj)
+
+
+# ----- to use multiGSEA package, we need a df with "Accession", "logFC", "PValue" columns -----
+GSEA_data <-  process_GSEAdata(uniprot_taxaobj)
+save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/GSEA-data.xlsx")
+
+
+pathways <- perform_GSEA(GSEA_data)
+save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/with-filterByExpr/pathways.xlsx")
+
+
+
+
+
+
+
+
+
+
+
+# ==============================================================================
+# TASK n - STRING analysis
+# ==============================================================================
+
+# String (version 12.0):
+# software link:
+# https://string-db.org/cgi/input?sessionId=bAHDVX8em5Is&input_page_show_search=on
+
+# steps:
+# search -> Multiple proteins -> List Of Name -> Organisms -> Advance Settings 
+#                                                              |-> Required score 
+#                                                                   |-> high confidence (0.700) - professor choice
+
+# tips:
+# List Of Names -> one-per-line, use Gene.Names..primary from UniProt, if you try to use Accessions, it doesn't work! 
+#               -> do not use all the Gene.Names..primary! It only work up to 2.000 entry (BIG ACHO)
+#               -> try for instance:
+#                      - only the degs (per-contrast)
+#                      - only the under-expressed (per-contrast)
+#                      - only the over-expressed (per-contrast)
+#                      - only possible specific genes of interests selected (per-contrast)
+#               -> "per contrast" means that you have to search individually for each contrast, not all together
+#               -> you cannot use it if the organisms are all different, as in BLAST against Swiss-Prot! it fails  
+# Organisms -> use auto-detect, or the actual organism, in my case "Danio rerio"
+
+# references:
+
+
+# ==============================================================================
+
+
+# Data needed:
+
+
+
+
+# Running UniProt may take approximately 5min (degs) to 3hours (dt). 
 # Alternatively, you can skip this step and read the saved file instead.
 # ------------------------------------------------------------------------------
 # DataZ decide test without filterByExpr
@@ -966,61 +1337,34 @@ save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-d
 #save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-degZ.xlsx")
 # ------------------------------------------------------------------------------
 
-
-## Data (without filterByExpr):
-uniprot_taxaobj <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
-
-# ----- to use multiGSEA package, we need a df with "Accession", "logFC", "PValue" columns -----
-GSEA_data <- process_GSEAdata(uniprot_taxaobj)
-#save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/without-filterByExpr/GSEA-data.xlsx")
+ 
 
 
-pathways <- perform_GSEA(GSEA_data)
-#save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/without-filterByExpr/pathways.xlsx")
+# prepare data to use in string software:
 
+## Data (with filterByExpr):
+uniprot_taxaobj_with <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
 
-
-
-# 2974 each df -> output 0 enrich pathways (wtf is going on?!)
-GSEA_data <- process_GSEAdata(dt_Z)
-pathways <- perform_GSEA(GSEA_data)
-
+# ----- to use STRING, we need the column "Gene.Names..primary." -----
+STRING_data <- process_STRINGdata(uniprot_taxaobj_with) 
+save_to_excel(STRING_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/STRING-data.xlsx")
 
 
 ## Data (with filterByExpr):
-uniprot_taxaobj <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
-View(uniprot_taxaobj)
-
-
-# ----- to use multiGSEA package, we need a df with "Accession", "logFC", "PValue" columns -----
-GSEA_data <-  process_GSEAdata(uniprot_taxaobj)
-save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/GSEA-data.xlsx")
-
-
-pathways <- perform_GSEA(GSEA_data)
-save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/with-filterByExpr/pathways.xlsx")
-
-
-
-
-
-
-
-
-
-
-
-# ==============================================================================
-# TASK n - STRING analysis
-# ==============================================================================
+uniprot_taxaobj_without <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
 
 # ----- to use STRING, we need the column "Gene.Names..primary." -----
-STRING_data <- process_STRINGdata(uniprot_taxaobj) 
+STRING_data <- STRINGdata_processing(uniprot_taxaobj_without) 
 save_to_excel(STRING_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/without-filterByExpr/STRING-data.xlsx")
 
-# ----- to use STRING, we need the column "Gene.Names..primary." -----
-STRING_data <- STRINGdata_processing(uniprot_taxaobj) 
-save_to_excel(STRING_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/STRING-data.xlsx")
+
+
+
+
+
+
+
+
 
 
 
