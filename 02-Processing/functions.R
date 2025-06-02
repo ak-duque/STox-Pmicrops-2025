@@ -19,6 +19,7 @@
 # package dependencies
 
 ## CRAN
+library(showtext)
 library(openxlsx)
 library(stringr)
 
@@ -143,9 +144,9 @@ select_best_hits <- function(blast_data){
   
   # Debugging step
   # Example: TRINITY_DN0_c10_g1_i1
-  example <- blast_data %>% 
-    filter(GeneID == "TRINITY_DN100212_c0_g1_") %>%
-    select(c("qseqid","GeneID","evalue","pident"))
+  #example <- blast_data %>% 
+  #  filter(GeneID == "TRINITY_DN100212_c0_g1_") %>%
+  #  select(c("qseqid","GeneID","evalue","pident"))
   #View(example)
   
   # Order: lowest evalue and highest pident
@@ -156,9 +157,9 @@ select_best_hits <- function(blast_data){
   
   # Debugging step
   # Example: TRINITY_DN0_c10_g1_i1
-  example_best_hit <- best_hits %>% 
-    filter(GeneID == "TRINITY_DN100212_c0_g1_") %>%
-    select(c("qseqid","GeneID","evalue","pident"))
+  #example_best_hit <- best_hits %>% 
+  #  filter(GeneID == "TRINITY_DN100212_c0_g1_") %>%
+  #  select(c("qseqid","GeneID","evalue","pident"))
   #View(example_best_hit)
   
   
@@ -272,9 +273,9 @@ process_BpK_data <- function(BpK_data){
   
   # Debugging step
   # Example: ABCA1 (SwissProt)
-  example <- BpK_data %>% 
-    filter(GeneNameID== "ABCA1") %>%
-    select(c("GeneNameID","evalue","pident"))
+  #example <- BpK_data %>% 
+  #  filter(GeneNameID== "ABCA1") %>%
+  #  select(c("GeneNameID","evalue","pident"))
   #View(example)
   
   
@@ -293,9 +294,9 @@ process_BpK_data <- function(BpK_data){
   # Let's confirm we select the right row
   # Debugging step
   # Example: ABCA1  (SwissProt)
-  example1 <- BpK_data %>% 
-    filter(GeneNameID== "ABCA1") %>%
-    select(c("GeneNameID","evalue","pident"))
+  #example1 <- BpK_data %>% 
+  #  filter(GeneNameID== "ABCA1") %>%
+  #  select(c("GeneNameID","evalue","pident"))
   #View(example1)
   
   
@@ -375,7 +376,7 @@ evaluate_sequence_quality <- function(value, metric) {
     # evalue -> expect value
     # The lower the E value, the more significant the score and the alignment.
     case_when(
-      value > 1e-10 ~ "Good",
+      value > 1e-10 ~ "Bad",
       value <= 1e-70 ~ "Excellent",
       TRUE ~ "Good"
     )
@@ -1434,7 +1435,7 @@ process_EnrichmentScores <- function(enrichment_scores){
 #'
 perform_GSEA <- function(GSEA_data){
   
-  databases <- c("kegg") # options: kegg, reactome
+  databases <- c("kegg") # options: kegg, reactome, GO
   
   pathways <- getMultiOmicsFeatures(
     dbs = databases,
@@ -1480,6 +1481,8 @@ perform_GSEA <- function(GSEA_data){
       #print(head(omics_data$transcriptome))
       
       names(omics_data$transcriptome) <- contrast$Accession
+      omics_data$transcriptome <- sort(omics_data$transcriptome)
+      
       #print(head(omics_data$transcriptome))
       
       set.seed(42)
@@ -1541,19 +1544,15 @@ perform_GSEA <- function(GSEA_data){
 # ==============================================================================
 # Visualizations 
 # ==============================================================================
-#https://r-graph-gallery.com/14-venn-diagramm
-#https://r-charts.com/part-whole/ggvenndiagram/ 
-#https://ggplot2-book.org/layers.html
-#https://venn.bio-spring.top/using-ggvenndiagram
-#https://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/#figure-sizing
-?ggVennDiagram
-#https://showteeth.github.io/ggpie/articles/ggpie_manual.html
-#https://biostatsquid.com/volcano-plots-r-tutorial/
+
+# references:
+# -> https://ggplot2-book.org/layers.html
+# -> https://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/#figure-sizing
+# -> https://showteeth.github.io/ggpie/articles/ggpie_manual.html
+
+# ==============================================================================
 
 
-
-
-library(showtext)
 list.files("C:/Windows/Fonts", pattern = "arial", ignore.case = TRUE)
 font_add("Arial",
          regular = "C:/Windows/Fonts/arial.ttf",
@@ -1562,10 +1561,6 @@ font_add("Arial",
          bolditalic = "C:/Windows/Fonts/arialbi.ttf")
 
 showtext_auto()
-
-
-
-
 
 
 my_col <- c("Sp_RA" = "#E41A1C", "Sp_TR" = "#377EB8", "Sp_RF" = "#4DAF4A",
@@ -1579,8 +1574,16 @@ my_col <- c("Sp_RA" = "#E41A1C", "Sp_TR" = "#377EB8", "Sp_RF" = "#4DAF4A",
 
 
 
+# ==============================================================================
+# Visualizations - Venn Diagram
+# ==============================================================================
 
-
+# references:
+# -> https://r-graph-gallery.com/14-venn-diagramm
+# -> https://r-charts.com/part-whole/ggvenndiagram/ 
+# -> https://venn.bio-spring.top/using-ggvenndiagram
+# ?ggVennDiagram
+# ==============================================================================
 
 #'
 #' @param 
@@ -1645,8 +1648,9 @@ plot_vennDiagram <- function(vennData, save_plot = FALSE, output_file = NULL){
 
 
 
-
-
+# ==============================================================================
+# Visualizations - Bar plot
+# ==============================================================================
 
 
 
@@ -1789,20 +1793,32 @@ plot_barplot <- function(barData, save_plot = TRUE, output_file){
 
 
 
+# ==============================================================================
+# Visualizations - Pie chart
+# ==============================================================================
+
+
+
+
+# missing! to be done....
+
+
+
+# ==============================================================================
+# Visualizations - Principal component analysis (PCA)
+# ==============================================================================
 
 
 
 
 
-
-
-
-
-
-
-
-
-
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 get_common_GeneNameID <- function(x, y){
   
   matched_GeneNameID <- merge(x, y, by = "GeneNameID", suffixes = c(".x", ".y")) 
@@ -1812,6 +1828,13 @@ get_common_GeneNameID <- function(x, y){
 
 
 
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 get_unique_GeneID <- function(common_GeneNameID){
   
   GeneID <- unique(c(common_GeneNameID$GeneID.x,common_GeneNameID$GeneID.y))
@@ -1823,6 +1846,13 @@ get_unique_GeneID <- function(common_GeneNameID){
 
 
 
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 process_PCAdata <- function(data = NULL,
                             df1 = NULL,
                             df2 = NULL,
@@ -1892,9 +1922,15 @@ process_PCAdata <- function(data = NULL,
 }
   
   
-  
 
 
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 runPCA <- function(PCAdata, add_pseudocount=TRUE,removeVar = NULL){
   
   # inspired by : PraticalTutorial04
@@ -1938,6 +1974,13 @@ runPCA <- function(PCAdata, add_pseudocount=TRUE,removeVar = NULL){
 }
 
 
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 plot_pca <- function(PCAdata, save_plot = TRUE, output_file){
   
   
@@ -2037,6 +2080,13 @@ plot_pca <- function(PCAdata, save_plot = TRUE, output_file){
 # Tue May 27 10:36:48 2025 ------------------------------
 # Fail: loading plot is a mess, is not entirely working !! 
 
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 process_PCAloadings <- function(pca_result, reference_data){
   
   PCAloadings <- pca_result$pca_result$loadings
@@ -2085,6 +2135,13 @@ process_PCAloadings <- function(pca_result, reference_data){
   
 }
 
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 plot_pcaloadings <- function(PCAdata, save_plot = FAlSE, output_file){
   
   
@@ -2138,14 +2195,26 @@ plot_pcaloadings <- function(PCAdata, save_plot = FAlSE, output_file){
 
 
 
+# ==============================================================================
+# Visualizations - Volcano plot
+# ==============================================================================
 
-
+# references:
+# -> https://biostatsquid.com/volcano-plots-r-tutorial/
+# ==============================================================================
 
 # Note.: I need to confirm if the top5,  is the logFC, or the -log10 P-Value....
 # I used the logFC instead of the -log10 P-Value, maybe is not the correct way
 # I also, according to the thesis examples, need to change -log10 P-value to -log10 FDR 
 
 
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 process_volcano_data <- function(dt){
   
   
@@ -2181,6 +2250,13 @@ process_volcano_data <- function(dt){
 }
 
 
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
 plot_volcanoPlot <- function(volcano_data, highlighted, save_plot = TRUE, output_file = NULL){
   # volcano_data: Full volcano data
   # highlighted: Subset for labeling
@@ -2255,13 +2331,14 @@ plot_volcanoPlot <- function(volcano_data, highlighted, save_plot = TRUE, output
 
 
 
+# ==============================================================================
+# Visualizations - Heatmap 
+# ==============================================================================
 
 
 
 
-
-
-
+# missing! to be done....
 
 
 
