@@ -178,12 +178,15 @@ BpK_plat <- read.xlsx("03-Output/01-DEG-Analysis/preprocessed-data/BpK-Plat.xlsx
 
 # Process data: 
 Data_SP <- process_BpK_data(BpK_swissprot) #15947
+dim(Data_SP)
 #save_to_excel(Data_SP, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-SP.xlsx")
 
 Data_Z <- process_BpK_data(BpK_zebrafish) #2975
+dim(Data_Z)
 #save_to_excel(Data_Z, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-Z.xlsx")
 
 Data_P <- process_BpK_data(BpK_plat) #145
+dim(Data_P)
 #save_to_excel(Data_P, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-P.xlsx")
 
 
@@ -195,6 +198,29 @@ Data_P <- process_BpK_data(BpK_plat) #145
 
 
 # 2.1.1 e-value and pident behavior (before and after processing)
+
+
+## pident raw data :
+
+#barData_swissprot <- process_barplot_data(swissprot, "swissprot", metric = "pident")
+#barData_zebrafish <- process_barplot_data(zebrafish, "zebrafish", metric = "pident")
+#barData_plat <- process_barplot_data(plat, "platyhelminthes", metric = "pident")
+
+#data_list <- list("Swiss-prot" = barData_swissprot, 
+#                  "Zebrafish" = barData_zebrafish, 
+#                  "Platyhelminth" = barData_plat)
+
+#barData <- prepare_summary(data_list)
+
+## Bar plot
+#plot_barplot(barData, save_plot = TRUE, 
+#             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-pident-add-geneID.pdf" )
+
+
+#plot_barplot(barData, save_plot = TRUE, 
+#             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-pident-raw-data.pdf" )
+
+
 
 
 ## Pident before processing :
@@ -233,6 +259,31 @@ plot_barplot(barData, save_plot = TRUE,
              output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-pident-after-processing.pdf" )
 
 
+
+
+
+
+
+## E-value raw data :
+
+#barData_swissprot <- process_barplot_data(swissprot, "swissprot", metric = "evalue")
+#barData_zebrafish <- process_barplot_data(zebrafish, "zebrafish", metric = "evalue")
+#barData_plat <- process_barplot_data(plat, "platyhelminthes", metric = "evalue")
+
+#data_list <- list("Swiss-prot" = barData_swissprot, 
+#                  "Zebrafish" = barData_zebrafish, 
+#                  "Platyhelminth" = barData_plat)
+
+#barData <- prepare_summary(data_list)
+
+## Bar plot
+
+#plot_barplot(barData, save_plot = TRUE, 
+#             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-evalue-add-geneID.pdf" )
+
+
+#plot_barplot(barData, save_plot = TRUE, 
+#             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-evalue-raw-data.pdf" )
 
 
 
@@ -313,7 +364,7 @@ vennData <- list("Swiss-prot" = BpK_swissprot$GeneID,
                  "Platyhelminth" = BpK_plat$GeneID)
 
 plot_vennDiagram(vennData, save_plot=TRUE, 
-                 output_file="./03-Output/01-DEG-Analysis/annotation-results/figures/vennDiagram-BpKcommonGeneID.pdf")
+                 output_file="./03-Output/01-DEG-Analysis/annotation-results/figures/vennDiagram-BpKcommonGeneID-before-processing.pdf")
 
 
 # ==============================================================================
@@ -706,7 +757,7 @@ View(Sp.RAvsTR)
 # Get top 10 
 top10_SP_with_filter <- get_top10_degs(deg_SP, use_filter = TRUE, "SP") 
 
-# Get uniprot information (degs only)
+# Get UniProt information (degs only)
 
 
 
@@ -1204,12 +1255,13 @@ SPvsZ$unique_Z$RA.SpvsSu
 # ==============================================================================
 
 
-## Data (without filterByExpr):
-uniprot_taxaobj <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+## Data (with filterByExpr):
+gseaobj <- read_excel("./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/decideTest-Z.xlsx")
+View(gseaobj)
 
 # ----- to use multiGSEA package, we need a df with "Accession", "logFC", "PValue" columns -----
-GSEA_data <- process_GSEAdata(uniprot_taxaobj)
-#save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/without-filterByExpr/GSEA-data.xlsx")
+GSEA_data <- process_GSEAdata(gseaobj)
+save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/GSEA-data.xlsx")
 
 
 pathways <- perform_GSEA(GSEA_data)
