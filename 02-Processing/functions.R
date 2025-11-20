@@ -41,6 +41,12 @@ library(dplyr)
 ## Plot
 library(ggplot2)
 library(ggVennDiagram)
+library(pheatmap)
+library(ggthemes) 
+
+
+# Session info
+sessionInfo()
 
 
 # Constants and Global settings
@@ -1326,9 +1332,134 @@ get_uniprot_taxainfo <- function(deg_list, specific_accession = NULL) {
 }
 
 
+#' Get uniprot information
+#' 
+#'  
+#' 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+get_uniprot_proteinFunction <- function(deg_list, specific_accession = NULL) {
+  
+  uniprot_info <- list()
+  
+  for (contrast_name in names(deg_list)) {
+    
+    contrast <- deg_list[[contrast_name]]
+    
+    if (nrow(contrast) > 0) {
+      
+      # test
+      #Accession <- deg_SP[["Sp.RAvsTR"]]$Accession 
+      
+      # Decide which accession(s) to use
+      Accession <- if (!is.null(specific_accession)) specific_accession else contrast$Accession
+      
+      ## 1. Get protein function Information
+      Obj <- GetProteinFunction(Accession) 
+      merge_data <- merge(contrast, Obj, by.x="Accession", by.y=0, all.x = TRUE)
+      
+      uniprot_info[[contrast_name]] <- merge_data
+    }
+  }
+  
+  return(uniprot_info)
+}
+
+
+#' Get uniprot information
+#' 
+#'  
+#' 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+get_uniprot_GOinfo <- function(deg_list, specific_accession = NULL) {
+  
+  uniprot_info <- list()
+  
+  for (contrast_name in names(deg_list)) {
+    
+    contrast <- deg_list[[contrast_name]]
+    
+    if (nrow(contrast) > 0) {
+      
+      # test
+      #Accession <- deg_SP[["Sp.RAvsTR"]]$Accession 
+      
+      # Decide which accession(s) to use
+      Accession <- if (!is.null(specific_accession)) specific_accession else contrast$Accession
+      
+      ## 1. Get GO terms
+      Obj <- GetProteinGOInfo(Accession) 
+      #merge_data <- merge(contrast, Obj, by.x="Accession", by.y=0, all.x = TRUE)
+      
+      uniprot_info[[contrast_name]] <- Obj
+      #uniprot_info[[contrast_name]] <- merge_data
+    }
+  }
+  
+  return(uniprot_info)
+}
 
   
   
+
+
+
+
+
+
+
+
+#' 
+#' 
+#'  
+#' 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+datasubset_keyword_filtered <- function(deg_list, keyword_pattern = NULL, column_name = NULL) {
+  
+  result <- list()
+  
+  for (contrast_name in names(deg_list)) {
+    
+    contrast <- deg_list[[contrast_name]]
+    
+    if (nrow(contrast) > 0) {
+      
+      data_filtered <- contrast %>%
+        filter(grepl(keyword_pattern, .data[[column_name]], ignore.case = TRUE)) %>%
+        mutate(keyword = str_extract(.data[[column_name]], regex(keyword_pattern, ignore_case = TRUE))) %>%
+        select(Accession, GeneNameID, logFC, FDR, pident, evalue, Function..CC., keyword )
+      
+      result[[contrast_name]] <- data_filtered
+    }
+  }
+  
+  return(result)
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1419,7 +1550,30 @@ process_EnrichmentScores <- function(enrichment_scores){
 
 
 
-
+process_EnrichmentScores <- function(enrichment_scores){
+  
+  # convert to a data frame
+  ES <- as.data.frame(enrichment_scores)
+  
+  # leadingEdge -> [1] "A8E7C5" "Q6PC64" -> list 
+  # collapse leadingEdge list to string (to facilitate data manipulation)
+  
+  ES$leadingEdge <- sapply(ES$leadingEdge,
+                           function(x) paste(x, collapse = ";"))
+  
+  # out: leadingEdge -> "A8E7C5;Q6PC64" -> string
+  
+  ES <- ES %>% 
+    arrange(padj)
+  
+  # remove pathway prefix if present
+  pathway_prefix <- "^\\(KEGG\\)"
+  if ("pathway" %in% colnames(ES)){
+    ES$pathway <- sub(pathway_prefix, "", ES$pathway)
+  }
+  
+  return(ES)
+}
 
 
 
@@ -1455,13 +1609,14 @@ perform_GSEA <- function(GSEA_data){
   # ES - [E]nrichemnt [S]core
   raw_ES <- list()
   processed_ES <- list()
+  top_10 <- list()
   
   
   for (contraste_name in names(GSEA_data)) {
     
     
     # test
-    #contrast <- GSEA_data[["Sp.RAvsTR"]]
+    contrast <- GSEA_data[["Sp.RAvsTR"]]
     
     contrast <- GSEA_data[[contraste_name]]
     
@@ -1490,6 +1645,7 @@ perform_GSEA <- function(GSEA_data){
       enrichment_scores <- multiGSEA(pathways, 
                                      omics_data) # ranks
       
+      
       #print(head(enrichment_scores))
       #View(enrichment_scores[["transcriptome"]])
       
@@ -1500,6 +1656,7 @@ perform_GSEA <- function(GSEA_data){
       if(is.null(enrichment_scores)){
         raw_ES[[contraste_name]] <- data.frame()
         processed_ES[[contraste_name]] <- data.frame()
+        top_10[[contraste_name]]<-data.frame()
         next
       }
       
@@ -1507,13 +1664,17 @@ perform_GSEA <- function(GSEA_data){
       raw_ES[[contraste_name]] <- enrichment_scores
       
       processed_enrichment_scores <- process_EnrichmentScores(enrichment_scores$transcriptome)
-      processed_ES[[contraste_name]] <- processed_enrichment_scores
+      processed_ES[[contraste_name]] <- processed_enrichment_scores %>% filter(padj < 0.05)
+      
+      top_10[[contraste_name]]<- processed_enrichment_scores %>% head(10)
       
     }
   
   }
   
-  return(list(ES_raw_result = raw_ES, ES_processed_result= processed_ES))
+  return(list(ES_raw_result = raw_ES, 
+              ES_processed_result = processed_ES,
+              top_10_result = top_10))
 }
 
 
@@ -1653,7 +1814,7 @@ plot_vennDiagram <- function(vennData, save_plot = FALSE, output_file = NULL){
 # ==============================================================================
 
 
-
+ 
 #'
 #' @param 
 #' 
@@ -1794,16 +1955,71 @@ plot_barplot <- function(barData, save_plot = TRUE, output_file){
 
 
 # ==============================================================================
-# Visualizations - Pie chart
+# Visualizations - bar plot 2
 # ==============================================================================
 
 
 
 
-# missing! to be done....
+m <- deg_SP[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
+View(m)
+m <- deg_SP[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
+View(m)
+m <- deg_SP[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
+View(m)
+
+#'
+#' @param dataframes 
+#' @param save_plot 
+#' @param output_file 
+#' 
+#' @return 
+#' 
+#' @example
+#'   
+#'   
+#'   
+plot_df_count_bar <- function(dataframes, save_plot = TRUE, output_file = NULL){
+  
+  df_summary <- data.frame(
+    dataframe = names(dataframes),
+    count = sapply(dataframes, nrow)
+  )
+  
+  df_summary <- df_summary[order(df_summary$count, decreasing = FALSE), ]
+  df_summary$dataframe <- factor(df_summary$dataframe, levels = df_summary$dataframe)
+  
+  bar_plot <- ggplot(df_summary, aes(x = dataframe, y = count, fill = dataframe)) +
+    geom_bar(stat = "identity", width = 0.65) +
+    # yintercept é 964.5 porque é 10% de 9645, que é o total de genes testados
+    geom_hline(yintercept = 964.5, color = "red", linetype = "dashed", size = 1) +
+    geom_text(aes(label = count), vjust = -0.2, size = 2.8) +
+    scale_y_continuous(limits = c(0, 1300)) +
+    theme_minimal(base = 14) +
+    theme(
+      axis.text = element_text(size = 9),
+      legend.position = "none",
+      plot.margin = margin(16, 16, 16, 16)
+    )
+  
+  print(bar_plot)
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    ggsave(
+      filename = output_file,
+      plot = bar_plot,
+      width = 9,
+      height = 7.5,
+      units = "cm",
+      dpi = 600)
+  }
+}
 
 
-
+plot_df_count_bar(m, save_plot = TRUE, output_file = "count_barplot1.png")
+plot_df_count_bar(m, save_plot = TRUE, output_file = "count_barplot2.png")
+plot_df_count_bar(m, save_plot = TRUE, output_file = "count_barplot3.png")
 # ==============================================================================
 # Visualizations - Principal component analysis (PCA)
 # ==============================================================================
@@ -2217,8 +2433,8 @@ plot_pcaloadings <- function(PCAdata, save_plot = FAlSE, output_file){
 #'
 process_volcano_data <- function(dt){
   
-  
-  dt <- deg_SP_with_filter$decideTest_result$Sp.RAvsTR
+  # test
+  # dt <- deg_SP_with_filter$decideTest_result$Sp.RAvsTR
   
   volcano_data <- dt %>%
     mutate(contrast = .[[6]]) %>%  
@@ -2233,7 +2449,6 @@ process_volcano_data <- function(dt){
     )
   
   
-  # Fail: acho que há qualquer erro aqui, na seleção dos top...
   top5_over <- volcano_data %>%
     filter(Expression == "Overexpressed") %>%
     arrange(desc(PValue)) %>%
@@ -2336,6 +2551,113 @@ plot_volcanoPlot <- function(volcano_data, highlighted, save_plot = TRUE, output
 # ==============================================================================
 
 
+process_volcano_data <- function(dt){
+  
+  # test
+  # dt <- deg_SP_with_filter$decideTest_result$Sp.RAvsTR
+  
+  volcano_data <- dt %>%
+    mutate(contrast = .[[6]]) %>%  
+    select(GeneNameID, logFC, PValue, contrast, FDR) %>%
+    mutate(
+      logPValue = -log10(PValue),
+      Expression = case_when(
+        contrast == 1 & logFC > 0 ~ "Overexpressed",
+        contrast == -1 & logFC < 0 ~ "Underexpressed",
+        TRUE ~ "Not Significant"  
+      )
+    )
+  
+  
+  top5_over <- volcano_data %>%
+    filter(Expression == "Overexpressed") %>%
+    arrange(desc(PValue)) %>%
+    slice_head(n = 5)
+  
+  top5_under <- volcano_data %>%
+    filter(Expression == "Underexpressed") %>%
+    arrange(PValue) %>%
+    slice_head(n = 5)
+  
+  highlighted <- bind_rows(top5_under, top5_over)
+  
+  return(list(highlighted = highlighted, volcano_data = volcano_data))
+}
+
+
+#'
+#' @param 
+#' 
+#' @return
+#' 
+#' @example 
+#'
+plot_volcanoPlot <- function(volcano_data, highlighted, save_plot = TRUE, output_file = NULL){
+  # volcano_data: Full volcano data
+  # highlighted: Subset for labeling
+  
+  volcano_plot <- ggplot(
+    volcano_data, 
+    aes(x = logFC, y = logPValue, color = Expression)
+  ) +
+    geom_point(
+      alpha = 0.8, 
+      size = 4.0
+    ) +
+    geom_hline(
+      yintercept = -log10(0.05), 
+      linetype = "dashed"
+    ) +
+    geom_vline(
+      xintercept = c(-1, 1), 
+      linetype = "dashed"
+    ) +
+    scale_color_manual(
+      values = c("Overexpressed" = "tomato",
+                 "Underexpressed" = "steelblue",
+                 "Not Significant" = "gray")
+    ) +
+    labs(
+      x = bquote(Log[2] ~ "fold change"),
+      y = bquote(-Log[10] ~ "P-Value"),
+      color = "Gene Expression"
+    ) +
+    theme_bw(base_size = 14) +
+    theme(
+      text = element_text(family = "Arial"),
+      legend.position = "right",
+      legend.title = element_text(size = 14, face = "bold"),
+      legend.text = element_text(size = 12),
+      panel.border = element_blank()
+    ) +
+    geom_label_repel(
+      data = highlighted, 
+      aes(label = GeneNameID),  
+      size = 6.0, 
+      max.overlaps = 100,
+      fontface = "bold", 
+      color = "black",
+      box.padding = 1, 
+      point.padding = 0.3,
+      segment.color = "black", 
+      segment.size = 1.0
+    )
+  
+  print(volcano_plot)
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    ggsave(
+      filename = output_file,
+      plot = volcano_plot,
+      width = 20,
+      height = 20,
+      units = "cm",
+      dpi = 600
+    )
+  }
+}
+
 
 
 # missing! to be done....
@@ -2346,9 +2668,498 @@ plot_volcanoPlot <- function(volcano_data, highlighted, save_plot = TRUE, output
 
 
 
+# ==============================================================================
+# Visualizations - Dot plot 
+# ==============================================================================
 
 
 
+
+
+process_GSEA_plotdata <- function(GSEA_data, contrast_name){
+  
+  data <- GSEA_data %>%
+    mutate(contrast = contrast_name, 
+           significance = 1 - padj) %>%
+    arrange(desc(significance))
+  #View(data)
+  
+  
+  data$pathway <- factor(data$pathway,
+                         levels = unique(data$pathway))
+  #View(data)
+  
+  return(data)
+  
+}
+
+
+
+
+plot_dotPlot <- function(GSEA_data, save_plot = TRUE, output_file = NULL){
+  
+  dot_plot <- ggplot(
+    GSEA_data, 
+    aes(x = contrast, y = pathway)
+    ) +
+    geom_point(aes(size = significance, color = NES)
+               ) +
+    scale_color_gradient2(
+      low = "blue", 
+      mid = "white", 
+      high = "red", 
+      midpoint = 0, 
+      limits = c(-2, 2)
+    ) +  
+    scale_size(range = c(5, 15)
+               ) + 
+    theme_minimal() +  
+    labs(
+      x = "Contrast", 
+      y = "Pathway", 
+      size = "1 - p.adjust", 
+      color = "NES"  
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),  
+      panel.grid.major = element_line(color = "gray90", linewidth = 0.5) 
+    )
+  
+
+  print(dot_plot)
+  
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    ggsave(
+      filename = output_file,
+      plot = dot_plot,
+      width = 20,
+      height = 20,
+      units = "cm",
+      dpi = 600
+    )
+  }
+  
+  
+}
+
+
+
+
+# ==============================================================================
+# Visualizations - pie chart
+# ==============================================================================
+
+
+
+possible_keywords <- c("heat", "stress", "thermal", "oxygen", "salinity", "HSP", "hypoxia", "adaptation", "oxidative stress", "acid base balance")
+colors <- c("Overexpressed" = "red", "Underexpressed" = "blue")
+
+
+plot_keyword_pieChart <- function(data, contrast_name, colors) {
+  # Add expression column and standardize keywords
+  data <- data %>%
+    mutate(
+      keyword = tolower(keyword),
+      expression = evaluate_sequence_quality(logFC, "logFC")
+    )
+  
+  # Count expressions per keyword
+  counts <- data %>%
+    group_by(keyword, expression) %>%
+    summarise(count = n(), .groups = "drop")
+  
+  plot_list <- list()
+  
+  for (kw in unique(counts$keyword)) {
+    pie_data <- counts %>% filter(keyword == kw)
+    bar_data <- data %>% filter(keyword == kw)
+    
+    if (nrow(pie_data) > 0 && nrow(bar_data) > 0) {
+      
+      
+      # Pie chart
+      pie_chart <- ggplot(
+        pie_data,
+        aes(x = "", y = count, fill = expression)
+      ) +
+        geom_bar(stat = "identity", width = 1) +
+        coord_polar(theta = "y") +
+        scale_fill_manual(values = colors) +
+        labs(title = paste(contrast_name, "-", kw)) +
+        theme_void() +
+        theme(legend.position = "none")
+      
+      
+      
+      # Bar plot
+      bar_plot <- ggplot(bar_data, aes(x = logFC, y = reorder(GeneNameID, logFC), fill = expression)) +
+        geom_col(width = 0.7, color = "black") +
+        scale_fill_manual(values = colors) +
+        geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+        theme_minimal() +
+        theme(legend.position = "none")
+      
+      # Save plots
+      pie_filename <- paste0("./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/",
+                             "pieChart-", contrast_name, "-", gsub(" ", "-", kw), ".pdf")
+      bar_filename <- paste0("./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/",
+                             "barPlot-", contrast_name, "-", gsub(" ", "-", kw), ".pdf")
+      
+      ggsave(
+        filename = pie_filename,
+        plot = pie_chart,  
+        width = 20,
+        height = 20,
+        units = "cm",
+        dpi = 600
+      )
+      
+      ggsave(
+        filename = bar_filename,
+        plot = bar_plot,  
+        width = 20,
+        height = 20,
+        units = "cm",
+        dpi = 600
+      )
+      
+      # Store in list
+      plot_list[[paste(contrast_name, kw, sep = "_")]] <- pie_chart
+    }
+  }
+  return(plot_list)
+}
+
+
+
+# Exemplo.1
+# using each contrast at a time
+#plot_keyword_pieChart(
+#  data = keyword_filtered[["Sp.RAvsTR"]],
+#  contrast_name = "Sp.RAvsTR"
+#)
+
+
+# Todas as dataframes de uma só vez:
+
+# exemplo.2 -> for loop
+
+all_plots <- list() # adiciona a lista de plots de cada contraste. Para ter uma lista com todos os contrastes.
+
+for (contrast_name in names(keyword_filtered)) {
+  plots<-plot_keyword_pieChart(
+    keyword_filtered[[contrast_name]], 
+    contrast_name,
+    colors = colors)
+  all_plots <- c(all_plots, plots)
+}
+
+# extra:  exemplo.3 -> walk2::purr
+#walk2(keyword_filtered, names(keyword_filtered), plot_keyword_pieChart)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# A partir de aqui, tenho que rever e melhorar ..................................
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==============================================================================
+# Visualizations - xxxxxx
+# ==============================================================================
+
+
+
+spring <- deg_SP[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
+View(spring)
+summer <- deg_SP[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
+View(summer)
+
+
+#'
+#' @param dataframes 
+#' @param save_plot 
+#' @param output_file 
+#' 
+#' @return 
+#' 
+#' @example
+#'   
+#'   
+#'   
+
+
+plot_df_count_bar <- function(dataframes, save_plot = TRUE, output_file = NULL){
+  df_summary <- data.frame(
+    dataframe = names(dataframes),
+    count = sapply(dataframes, nrow)
+  )
+  df_summary <- df_summary[order(df_summary$dataframe), ]
+  df_summary$dataframe <- factor(df_summary$dataframe, levels = names(dataframes))
+  
+  bar_plot <- ggplot(df_summary, aes(x = dataframe, y = count, fill = dataframe)) +
+    geom_col(width = 0.65, show.legend = FALSE, color = NA) +
+    coord_flip() +
+    # Use more subtle colors; consider viridis::scale_fill_viridis(discrete = TRUE)
+    scale_fill_manual(values = c("#FFD166", "#6ABF69", "#FF6F61")) +
+    # Light, subtle gridlines and axis lines
+    theme_minimal(base_size = 14) +
+    theme(
+      axis.text.y = element_text(size = 13, face = "bold"),
+      axis.text.x = element_text(size = 12),
+      axis.title = element_text(size = 15, face = "bold"),
+      panel.grid.major.x = element_line(color = "grey90", size = 0.7),
+      panel.grid.major.y = element_blank(),
+      plot.margin = margin(8, 12, 8, 18),
+      axis.ticks = element_line(color = "grey40", size = 0.7)
+    ) +
+    geom_hline(yintercept = 964.5, linetype = "dashed", color = "#d53e4f", linewidth = 1.3) +
+    scale_y_continuous(limits = c(0, 1200), expand = c(0.01, 0)) +
+    labs(
+      x = NULL,
+      y = "Number of DEGs"
+    )
+  
+  if(save_plot){
+    if(is.null(output_file)) stop("Please provide output_file when save_plot = TRUE")
+    ggsave(
+      filename = output_file,
+      plot = bar_plot,
+      width = 13,          # wider aspect ratio is recommended
+      height = 7.5,
+      units = "cm",
+      dpi = 600
+    )
+  }
+}
+
+plot_df_count_bar(spring, save_plot = TRUE, output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/barPlot-spring-degs.pdf")
+plot_df_count_bar(summer, save_plot = TRUE, output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/barPlot-summer-degs.pdf")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Create a column for color based on logFC sign
+keyword_filtered[["Sp.TRvsRF"]]$Direction <- ifelse(keyword_filtered[["Sp.TRvsRF"]]$logFC >= 0, "Up", "Down")
+View(keyword_filtered[["Sp.TRvsRF"]])
+
+df <- keyword_filtered[["Sp.TRvsRF"]] %>%
+  filter(keyword == "stress")
+View(df)
+
+# Plot
+ggplot(df, aes(x = logFC, y = reorder(GeneNameID, logFC), fill = Direction)) +
+  geom_col(width = 0.7, color = "black") +
+  scale_fill_manual(values = c("Up" = "red", "Down" = "blue")) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  labs(
+    x = "logFC",
+    y = "Gene",
+    title = "Gene Expression logFC"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+
+
+
+
+
+
+
+
+
+
+# Create the data frame
+df <- data.frame(
+  Table = names(deg_SP),
+  Nrows = sapply(deg_SP, nrow)
+)
+
+# Create the plot
+p <- ggplot(df, aes(x = reorder(Table, Nrows), y = Nrows, fill = Nrows)) +
+  geom_col(color = "black", width = 0.7, show.legend = FALSE) +
+  coord_flip() +
+  geom_hline(yintercept = 964.5, linetype = "dashed", color = "red", linewidth = 0.8) +
+  scale_fill_gradient2(
+    low = "blue",
+    mid = "white",
+    high = "red",
+    midpoint = mean(df$Nrows),
+    limits = c(min(df$Nrows), max(df$Nrows))
+  ) +
+  scale_y_continuous(limits = c(0, 1200), expand = c(0, 0)) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title.y = element_text(size = 14, face = "bold"),
+    panel.grid.major = element_line(color = "gray90", linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(t = 10, r = 30, b = 10, l = 10) 
+  )
+
+# Save the plot
+ggsave(
+  filename = "barplot_horizontal_matched.pdf",
+  plot = p,
+  width = 20,
+  height = 20,
+  units = "cm",
+  dpi = 600
+)
+
+
+
+
+
+
+
+
+
+
+
+# ==============================================================================
+# Heatmap - xxxxxx
+# ==============================================================================
+
+
+
+
+
+# load data
+# genes diferencialmente expressos para o contraste RA.SpvsSu
+data <- deg_SP[["RA.SpvsSu"]]
+
+
+# log2 CPM normalized expression:
+# da coluna 22 à 39 tenho as amostras com as counts
+cpms <- cpm(data[22:39], normalized.lib.sizes = TRUE, log = TRUE)
+
+
+rownames(cpms) <- data$GeneNameID
+View(cpms) # cpm data frame shoud be like:
+           # columns - samples
+           #    rows - variables
+           #  values - counts (normalized)
+
+
+
+# Extra ----
+
+sample_name <- c( "F14.Sp_TR","F15.Su_TR","F16.Su_RA",
+                  "F17.Sp_RF","F18.Sp_TR","F19.Sp_RA",
+                  "F2.Su_RF" ,"F2.Su_TR" ,"F21.Sp_RA",
+                  "F21.Sp_TR","F22.Sp_RF","F27.Sp_RA",
+                  "F28.Su_RF","F30.Su_TR","F35.Sp_RF",
+                  "F35.Su_RF","F38.Su_RA","F4.Su_RA" ) 
+
+
+
+col_metadata <- data.frame(
+  Location = case_when(
+    grepl("_TR", sample_name) ~ "Troia",
+    grepl("_RA", sample_name) ~ "Aveiro",
+    grepl("_RF", sample_name) ~ "Formosa"),
+  
+  Season = ifelse(grepl("Sp", sample_name), "Spring", "Summer"))
+
+
+rownames(col_metadata) <- sample_name
+View(col_metadata)
+
+
+annot_colors <- list(
+  Location = c(Troia="#609966", Aveiro="#9DC08D", Formosa="#40513B"),
+  Season = c(Spring="#FF9843", Summer="#C4E1F6"))
+
+# ----
+
+
+
+
+# Plot heatmap
+heatmap_plot <- pheatmap(
+  cpms,
+  scale = "row",
+  clustering_distance_rows = "euclidean",
+  clustering_distance_cols = "euclidean",
+  clustering_method = "complete",                                                     
+  cutree_rows = 4,
+  cutree_cols = 6,                                                             
+  cellwidth = 30,
+  cellheight = 12,
+  annotation_col = col_metadata,
+  annotation_colors = annot_colors,
+  fontsize_row = 8,
+  fontsize_col = 8
+)
+
+View(heatmap_plot)
+
+
+ggsave(
+  filename = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/heatmap-SpringvsSummer-RiaAveiro.pdf",
+  plot = heatmap_plot,
+  width = 30,
+  height = 20,
+  units = "cm",
+  dpi = 600
+)
 
 
 

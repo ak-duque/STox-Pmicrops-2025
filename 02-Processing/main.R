@@ -555,8 +555,7 @@ platGeneID <- unique(c(platGenes$GeneID.Ref, platGenes$GeneID.Plat))
 
 
 
-
-
+save_to_excel(platGeneNameID, "./03-Output/01-DEG-Analysis/analysis-ready-data/putative-plat-genes.xlsx")
 
 
 # ==============================================================================
@@ -660,7 +659,7 @@ PCAdata <- process_PCAdata(df1 = fish_SP, df2 = Data_Z, tsv_data = abundance)
 dim(PCAdata) # 2254
 pca_result <- runPCA(PCAdata)
 plot_pca(pca_result, save_plot = TRUE, 
-         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-fish-genes-count.pdf")
+         output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/pcaPlot-fish-genes-abundance.pdf")
 
 
 # to be continued .....
@@ -705,10 +704,10 @@ save_to_excel(Data_Z, "./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-
 # Data needed:
 
 Data_SP <- read.xlsx("./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-SP[v2].xlsx")
-dim(Data_SP)
+dim(Data_SP) # 15 937
 
 Data_Z <- read.xlsx("./03-Output/01-DEG-Analysis/analysis-ready-data/BpK-data-processed-Z[v2].xlsx")
-dim(Data_Z)
+dim(Data_Z) # 2 974
 
 load("03-Output/01-DEG-Analysis/analysis-ready-data/abundance_tsv")
 # counts : 
@@ -757,12 +756,103 @@ View(Sp.RAvsTR)
 # Get top 10 
 top10_SP_with_filter <- get_top10_degs(deg_SP, use_filter = TRUE, "SP") 
 
-# Get UniProt information (degs only)
+
+# Get UniProt information 
+TaxaInfo <- get_uniprot_taxainfo(deg_SP)
+functionInfo <- get_uniprot_proteinFunction(deg_SP)
+Goterms<- get_uniprot_GOinfo(deg_SP)
+
+save_to_excel(TaxaInfo, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/TaxaInfo-SP.xlsx")
+save_to_excel(functionInfo , "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/functionInfo-SP.xlsx")
+save_to_excel(Goterms, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/Goterms-SP.xlsx")
+
+
+functionInfo <- read_excel("./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/functionInfo-SP.xlsx")
+
+
+keyword_filtered <- datasubset_keyword_filtered(
+  deg_list = functionInfo,
+  keyword_pattern = "heat|stress|thermal|oxygen|salinity|HSP|hypoxia|adaptation|oxidative stress|acid base balance",
+  column_name = "Function..CC."
+)
+
+View(keyword_filtered)
+
+save_to_excel(keyword_filtered, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/keyword-filtered-SP.xlsx")
+
+
+# Read and analyse keyword filtered
+keyword_filtered <- read_excel("./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/keyword-filtered-SP.xlsx")
+
+
+# analysis example: 
+
+# spring
+table(keyword_filtered$Sp.TRvsRF$keyword)
+
+
+hsp_filtered <- keyword_filtered$Sp.TRvsRF %>%
+  filter(keyword == "HSP") %>%
+  View() 
+
+heat_filtered <- keyword_filtered$Sp.TRvsRF %>%
+  filter(keyword == "heat") %>%
+  View()
+
+oxidativeStress_filtered <- keyword_filtered$Sp.TRvsRF %>%
+  filter(keyword == "oxidative stress") %>%
+  View()
+Stress_filtered <- keyword_filtered$Su.RAvsRF %>%
+  filter(keyword == "stress") %>%
+  View()
+Stress_filtered <- keyword_filtered$Su.TRvsRF %>%
+  filter(keyword == "stress") %>%
+  View()
+table(keyword_filtered$Sp.RAvsRF$keyword)
+table(keyword_filtered$Sp.RAvsTR$keyword)
+
+# summer
+table(keyword_filtered$Su.TRvsRF$keyword)
+table(keyword_filtered$Su.RAvsRF$keyword)
+table(keyword_filtered$Su.RAvsTR$keyword)
+
+
+# Ria de Aveiro
+table(keyword_filtered$RA.SpvsSu$keyword)
+
+
+
+hsp_filtered <- keyword_filtered$Su.RAvsTR%>%
+  filter(keyword == "HSP") 
+View(hsp_filtered)
+hsp_filtered$GeneNameID
 
 
 
 
 
+
+# common degs between seasons
+
+# spring vs summer
+
+dim(deg_SP[["Sp.TRvsRF"]]) # 1012
+
+dim(deg_SP[["Su.TRvsRF"]]) # 192
+
+common <- merge(deg_SP[["Sp.TRvsRF"]], deg_SP[["Su.TRvsRF"]], by = "Accession")
+dim(common) # 110
+overSp <- common %>% filter(logFC.x > 0)
+dim(overSp)
+overSu <- common %>% filter(logFC.y > 0)
+dim(overSu)
+
+
+
+
+
+
+#-------------------------------------------------------------------------------
 
 
 
@@ -865,45 +955,47 @@ plot_pca(pca_result, save_plot = TRUE,
 
 # 3.1.3.1 with filterByExpr
 
-View(deg_SP_with_filter$DEG_result)
-names(deg_SP_with_filter$decideTest_result)
 
 dt_SP <- deg_SP_with_filter$decideTest_result
 
+View(deg_SP_with_filter$DEG_result)
+names(deg_SP_with_filter$decideTest_result)
+
 res <- process_volcano_data(dt_SP[["Sp.RAvsTR"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsTR-with-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-Spring-RAvsTR-with-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Sp.RAvsRF"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsRF-with-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-Spring-RAvsRF-with-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Sp.TRvsRF"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-TRvsRF-with-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-Spring-TRvsRF-with-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Su.RAvsTR"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsTR-with-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-Summer-RAvsTR-with-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Su.RAvsRF"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsRF-with-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-Summer-RAvsRF-with-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Su.TRvsRF"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-TRvsRF-with-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-Summer-TRvsRF-with-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["RA.SpvsSu"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaAveiro-SpvsSu-with-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-RiaAveiro-SpvsSu-with-filterByExpr-SP.pdf")
 
-#res <- process_volcano_data(dt_SP[["TR.SpvsSu"]])
-#plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE)
+res <- process_volcano_data(dt_SP[["TR.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-Troia-SpvsSu-with-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["RF.SpvsSu"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaFormosa-SpvsSu-with-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/figures/volcanoPlot-RiaFormosa-SpvsSu-with-filterByExpr-SP.pdf")
 
 
 # 3.1.3.2 without filterByExpr
@@ -915,38 +1007,39 @@ dt_SP <- deg_SP_without_filter$decideTest_result
 
 res <- process_volcano_data(dt_SP[["Sp.RAvsTR"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsTR-without-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-Spring-RAvsTR-without-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Sp.RAvsRF"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-RAvsRF-without-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-Spring-RAvsRF-without-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Sp.TRvsRF"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Spring-TRvsRF-without-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-Spring-TRvsRF-without-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Su.RAvsTR"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsTR-without-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-Summer-RAvsTR-without-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Su.RAvsRF"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-RAvsRF-without-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-Summer-RAvsRF-without-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["Su.TRvsRF"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-Summer-TRvsRF-without-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-Summer-TRvsRF-without-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["RA.SpvsSu"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaAveiro-SpvsSu-without-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-RiaAveiro-SpvsSu-without-filterByExpr-SP.pdf")
 
-#res <- process_volcano_data(dt_SP[["TR.SpvsSu"]])
-#plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE)
+res <- process_volcano_data(dt_SP[["TR.SpvsSu"]])
+plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-Troia-SpvsSu-without-filterByExpr-SP.pdf")
 
 res <- process_volcano_data(dt_SP[["RF.SpvsSu"]])
 plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
-                 output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/volcanoPlot-RiaFormosa-SpvsSu-without-filterByExpr-SP.pdf")
+                 output_file = "./03-Output/01-DEG-Analysis/DEG-results/without-filterByExpr/figures/volcanoPlot-RiaFormosa-SpvsSu-without-filterByExpr-SP.pdf")
 
 
 
@@ -978,6 +1071,7 @@ deg_Z_with_filter <-run_and_save_DEG(Data_Z,
                                       use_filter = TRUE,
                                       use_lfc = FALSE)
 
+deg_Z <- deg_Z_with_filter$DEG_result
 
 # Get top 10 + summary
 top10_Z_with_filter <- get_top10_degs(deg_Z_with_filter$DEG_result, 
@@ -1187,9 +1281,9 @@ plot_volcanoPlot(res$volcano_data, res$highlighted, save_plot = TRUE,
 
 SPvsZ <- common_deg_SP_Z(deg_SP, deg_Z)
 
-#save_to_excel(SPvsZ$common, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-common.xlsx")
-#save_to_excel(SPvsZ$unique_SP, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-unique-SP.xlsx")
-#save_to_excel(SPvsZ$unique_Z, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-unique-Z.xlsx")
+save_to_excel(SPvsZ$common, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-common[v2].xlsx")
+save_to_excel(SPvsZ$unique_SP, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-unique-SP[v2].xlsx")
+save_to_excel(SPvsZ$unique_Z, "./03-Output/01-DEG-Analysis/DEG-results/with-filterByExpr/degs-unique-Z[v2].xlsx")
 
 
 
@@ -1221,6 +1315,43 @@ SPvsZ$unique_Z$RF.SpvsSu
 SPvsZ$unique_Z$RA.SpvsSu
 
 
+
+
+
+# bar plot's
+
+#barData_common <- process_barplot_data(SPvsZ$common$Sp.TRvsRF, "common", metric = "pident") # It doesn't work cus pident == pident.SP and pident.Z
+barData_unique_SP <- process_barplot_data(SPvsZ$unique_SP$Sp.TRvsRF, "swissprot", metric = "pident")
+barData_unique_Z <- process_barplot_data(SPvsZ$unique_Z$Sp.TRvsRF, "zebrafish", metric = "pident")
+
+data_list <- list("unique_SP" = barData_unique_SP, 
+                  "unique_Z" = barData_unique_Z)
+
+barData <- prepare_summary(data_list)
+
+## Bar plot
+plot_barplot(barData, save_plot = FALSE)
+
+plot_barplot(barData, save_plot = TRUE, 
+             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-Sp.TRvsRF-pident-uniqueSP-uniqueZ.pdf" )
+
+
+
+
+#barData_common <- process_barplot_data(SPvsZ$common$Sp.TRvsRF, "common", metric = "evalue") 
+barData_unique_SP <- process_barplot_data(SPvsZ$unique_SP$Sp.TRvsRF, "swissprot", metric = "evalue")
+barData_unique_Z <- process_barplot_data(SPvsZ$unique_Z$Sp.TRvsRF, "zebrafish", metric = "evalue")
+
+data_list <- list("unique_SP" = barData_unique_SP, 
+                  "unique_Z" = barData_unique_Z)
+
+barData <- prepare_summary(data_list)
+
+## Bar plot
+plot_barplot(barData, save_plot = FALSE)
+
+plot_barplot(barData, save_plot = TRUE, 
+             output_file = "./03-Output/01-DEG-Analysis/annotation-results/figures/barPlot-Sp.TRvsRF-evalue-uniqueSP-uniqueZ.pdf" )
 
 
 
@@ -1265,30 +1396,24 @@ save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/
 
 
 pathways <- perform_GSEA(GSEA_data)
+
+View(pathways$ES_processed_result$Sp.TRvsRF)
+
+save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/with-filterByExpr/pathways.xlsx")
 #save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/without-filterByExpr/pathways.xlsx")
 
 
 
 
-# 2974 each df -> output 0 enrich pathways (wtf is going on?!)
-GSEA_data <- process_GSEAdata(dt_Z)
-pathways <- perform_GSEA(GSEA_data)
+# Plot top10 
+RA_SpvsSu <- process_GSEA_plotdata(pathways$top_10_result$RA.SpvsSu, "RA.SpvsSu")
+Sp_TRvsRF <- process_GSEA_plotdata(pathways$top_10_result$Sp.TRvsRF, "Sp.TRvsRF")
 
+data_to_plot <- list(c(RA_SpvsSu,Sp_TRvsRF))
+data_to_plot <- bind_rows(RA_SpvsSu, Sp_TRvsRF)
+View(data_to_plot)
 
-
-## Data (with filterByExpr):
-uniprot_taxaobj <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
-View(uniprot_taxaobj)
-
-
-# ----- to use multiGSEA package, we need a df with "Accession", "logFC", "PValue" columns -----
-GSEA_data <-  process_GSEAdata(uniprot_taxaobj)
-save_to_excel(GSEA_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/GSEA-data.xlsx")
-
-
-pathways <- perform_GSEA(GSEA_data)
-save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/GSEA-results/with-filterByExpr/pathways.xlsx")
-
+plot_dotPlot(data_to_plot,save_plot = TRUE, output_file = "./03-Output/02-Pathway-Enrichment/GSEA-results/with-filterByExpr/dotplot-Ra-SpvsSu-Sp-TRvsRF.pdf" )
 
 
 
@@ -1351,16 +1476,16 @@ save_to_excel(pathways$ES_processed_result, "./03-Output/02-Pathway-Enrichment/G
 #save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
 
 # DataZ decide test with filterByExpr
-decideTest_Z <- deg_Z_with_filter$decideTest_result
-SpvsSu <- decideTest_Z[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
-Data_SpvsSu <- get_uniprot_taxainfo(SpvsSu)
-Su <- decideTest_Z[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
-Data_Su <- get_uniprot_taxainfo(Su)
-Sp <- decideTest_Z[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
-Data_Sp <- get_uniprot_taxainfo(Sp)
-uniprot_taxaobj <- c(Data_SpvsSu,Data_Su,Data_Sp)
-View(uniprot_taxaobj)
-save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+#decideTest_Z <- deg_Z_with_filter$decideTest_result
+#SpvsSu <- decideTest_Z[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
+#Data_SpvsSu <- get_uniprot_taxainfo(SpvsSu)
+#Su <- decideTest_Z[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
+#Data_Su <- get_uniprot_taxainfo(Su)
+#Sp <- decideTest_Z[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
+#Data_Sp <- get_uniprot_taxainfo(Sp)
+#uniprot_taxaobj <- c(Data_SpvsSu,Data_Su,Data_Sp)
+#View(uniprot_taxaobj)
+#save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
 
 
 
@@ -1377,16 +1502,19 @@ save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-d
 #save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-degZ.xlsx")
 
 # DataZ degs with filterByExpr
-#deg_Z <- deg_Z_with_filter$DEG_result
-#SpvsSu <- deg_Z[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
-#Data_SpvsSu <- get_uniprot_taxainfo(SpvsSu)
-#Su <- deg_Z[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
-#Data_Su <- get_uniprot_taxainfo(Su)
-#Sp <- deg_Z[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
-#Data_Sp <- get_uniprot_taxainfo(Sp)
-#uniprot_taxaobj <- c(Data_SpvsSu,Data_Su,Data_Sp)
-#View(uniprot_taxaobj)
-#save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-degZ.xlsx")
+deg_Z <- deg_Z_with_filter$DEG_result
+SpvsSu <- deg_Z[c("RA.SpvsSu", "TR.SpvsSu", "RF.SpvsSu" )]
+Data_SpvsSu <- get_uniprot_taxainfo(SpvsSu)
+Su <- deg_Z[c("Su.RAvsTR", "Su.RAvsRF", "Su.TRvsRF" )]
+Data_Su <- get_uniprot_taxainfo(Su)
+Sp <- deg_Z[c("Sp.RAvsTR", "Sp.RAvsRF", "Sp.TRvsRF" )]
+Data_Sp <- get_uniprot_taxainfo(Sp)
+uniprot_taxaobj <- c(Data_SpvsSu,Data_Su,Data_Sp)
+uniprot_taxaobj <- lapply(uniprot_taxaobj, function(df) {
+  df[order(df$logFC, decreasing = TRUE), ]
+})
+View(uniprot_taxaobj)
+save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-degZ.xlsx")
 # ------------------------------------------------------------------------------
 
  
@@ -1394,20 +1522,22 @@ save_to_excel(uniprot_taxaobj, "./03-Output/02-Pathway-Enrichment/preprocessed-d
 
 # prepare data to use in string software:
 
-## Data (with filterByExpr):
-uniprot_taxaobj_with <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
+## Data (with filterByExpr) decide test:
+#uniprot_taxaobj_with <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
 
 # ----- to use STRING, we need the column "Gene.Names..primary." -----
-STRING_data <- process_STRINGdata(uniprot_taxaobj_with) 
+#STRING_data <- process_STRINGdata(uniprot_taxaobj_with) 
+#save_to_excel(STRING_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/STRING-data.xlsx")
+
+
+
+
+## Data (with filterByExpr) degs:
+uniprot_taxaobj_with <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/with-filterByExpr/uniprot-taxaobj-degZ.xlsx")
+
+# ----- to use STRING, we need the column "Gene.Names..primary." -----
+STRING_data <- process_STRINGdata(uniprot_taxaobj) 
 save_to_excel(STRING_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/with-filterByExpr/STRING-data.xlsx")
-
-
-## Data (with filterByExpr):
-uniprot_taxaobj_without <- read_excel("./03-Output/02-Pathway-Enrichment/preprocessed-data/without-filterByExpr/uniprot-taxaobj-dtZ.xlsx")
-
-# ----- to use STRING, we need the column "Gene.Names..primary." -----
-STRING_data <- STRINGdata_processing(uniprot_taxaobj_without) 
-save_to_excel(STRING_data, "./03-Output/02-Pathway-Enrichment/analysis-ready-data/without-filterByExpr/STRING-data.xlsx")
 
 
 
