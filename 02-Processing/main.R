@@ -15,7 +15,7 @@
 
 
 # ==============================================================================
-# TASK 1 - Blablabla blablabla blabla
+# TASK 1 -  Integrate BLASTp annotations with Kallisto gene-level expression data
 # ==============================================================================
 
 
@@ -165,7 +165,7 @@ save_to_excel(BpK_plat, "03-Output/01-DEG-Analysis/preprocessed-data/BpK-Plat.xl
 
 
 # ==============================================================================
-# TASK 2 - Blablabla blablabla blabla
+# TASK 2 - Process integrated datasets across reference databases
 # ==============================================================================
 
 # Data needed:
