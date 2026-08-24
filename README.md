@@ -1,5 +1,3 @@
-![Intertidal zone](readme_images/intertidal_zone.png)
-
 # Functional RNA-seq analysis of *Pomatoschistus microps*
 
 Bioinformatics analysis of RNA-seq data from *Pomatoschistus microps* sampled across three coastal locations in Portugal and two seasons, exploring molecular responses to thermal stress in a non-model organism.
