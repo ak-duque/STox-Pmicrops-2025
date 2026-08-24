@@ -19,7 +19,7 @@ Integrated	transcript	abundance	data	(Kallisto)	with	functional	annotations	from
 
 Differential	expression	analysis	with	edgeR,	functional	enrichment	with	multiGSEA	(KEGG),	and	protein–protein interaction	networks	with	STRING.
 
-![Pipeline overview](readme_images/pipeline_overview.svg)
+![Pipeline overview](readme_images/pipeline_overview.png)
 
 ## Key outputs
 
